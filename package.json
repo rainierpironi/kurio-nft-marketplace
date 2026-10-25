@@ -50,5 +50,10 @@
     "workerDirectory": [
       "public"
     ]
+  },
+  "overrides": {
+    "@mswjs/socket.io-binding": {
+      "msw": "$msw"
+    }
   }
 }
