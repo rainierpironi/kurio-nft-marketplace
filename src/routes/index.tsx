@@ -4,7 +4,7 @@ import { getNFTs } from '@/lib/api'
 import { NFTCard } from '@/components/NFTCard'
 import { Button } from '@/components/button'
 import { Skeleton } from '@/components/skeleton'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AuthModal } from '@/components/AuthModal'
 import { toast } from 'sonner'
 
@@ -18,12 +18,13 @@ interface SearchParams {
 
 export const Route = createFileRoute('/')({
   validateSearch: (search: Record<string, unknown>): SearchParams => {
+    const parsedPage = search.page ? Math.max(1, Number(search.page)) : undefined
     return {
       q: typeof search.q === 'string' && search.q.trim() !== '' ? search.q : undefined,
       category: typeof search.category === 'string' && search.category.trim() !== '' ? search.category : undefined,
       network: typeof search.network === 'string' && search.network.trim() !== '' ? search.network : undefined,
       sort: typeof search.sort === 'string' && search.sort.trim() !== '' ? search.sort : undefined,
-      page: search.page ? Math.max(1, Number(search.page)) : 1,
+      page: parsedPage && parsedPage > 1 ? parsedPage : undefined,
     }
   },
   component: Index,
@@ -38,6 +39,10 @@ function Index() {
   const [searchInput, setSearchInput] = useState(q)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
 
+  useEffect(() => {
+    setSearchInput(q)
+  }, [q])
+
   // Atualização atômica de search params (sempre reiniciando a página para 1 em mudanças de filtro)
   const updateFilters = (newParams: Partial<SearchParams>) => {
     navigate({
@@ -45,7 +50,9 @@ function Index() {
         const next = { ...prev, ...newParams }
         // Se mudou qualquer filtro exceto a página, volta para a página 1
         if (!('page' in newParams)) {
-          next.page = 1
+          delete next.page
+        } else if (next.page && next.page <= 1) {
+          delete next.page
         }
         // Remove chaves vazias da URL para manter a query string limpa
         Object.keys(next).forEach((key) => {
@@ -125,7 +132,7 @@ function Index() {
       </section>
 
       {/* Seção do Catálogo */}
-      <div id="catalogo" className="flex flex-col lg:flex-row gap-10 pt-4">
+      <div id="catalogo" className="flex flex-col lg:flex-row gap-10 pt-4 scroll-mt-24">
         {/* Barra Lateral de Filtros (Desktop) */}
         <aside className="w-full lg:w-64 flex flex-col gap-8 shrink-0">
           {/* Busca Textual */}
@@ -377,7 +384,7 @@ function Index() {
       </div>
 
       {/* Frame Figma: Promos (Crie sua coleção + Criadores em Destaque) */}
-      <section className="pt-8">
+      <section id="criadores" className="pt-8 scroll-mt-24">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
           
           {/* Card Esquerdo: Crie sua própria coleção */}
@@ -495,7 +502,7 @@ function Index() {
       </section>
 
       {/* Frame Figma: Blog & Guias da Comunidade */}
-      <section className="pt-8 pb-4 space-y-8">
+      <section id="aprenda" className="pt-8 pb-4 space-y-8 scroll-mt-24">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div className="space-y-2">
             <span className="font-mono text-xs text-primary font-bold tracking-widest uppercase bg-primary/10 px-3 py-1 rounded-full inline-block border border-primary/20">

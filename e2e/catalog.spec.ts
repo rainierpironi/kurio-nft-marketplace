@@ -1,11 +1,18 @@
 import { test, expect } from '@playwright/test'
 
-test.describe('Catálogo, Filtros e Sincronização de URL', () => {
-  test('deve carregar a página inicial com catálogo e Hero banner', async ({ page }) => {
+test.describe('Catálogo, Filtros, Header e Sincronização de URL', () => {
+  test('deve carregar a página inicial com catálogo, Header funcional e Hero banner', async ({ page }) => {
     await page.goto('/')
-    await expect(page.locator('text=KURIO')).toBeVisible()
+    await expect(page.getByRole('banner').getByRole('link', { name: 'KURIO' })).toBeVisible()
     await expect(page.locator('text=Seja dono do futuro')).toBeVisible()
     await expect(page.locator('text=Cosmic Perspective')).toBeVisible()
+
+    // Verifica que os links do Header estão visíveis e funcionais
+    const nav = page.getByRole('navigation', { name: 'Navegação Principal' })
+    await expect(nav.getByRole('button', { name: 'Início' })).toBeVisible()
+    await expect(nav.getByRole('button', { name: 'Mercado' })).toBeVisible()
+    await expect(nav.getByRole('button', { name: 'Criadores' })).toBeVisible()
+    await expect(nav.getByRole('button', { name: 'Aprenda' })).toBeVisible()
   })
 
   test('deve filtrar por busca textual e refletir na URL', async ({ page }) => {
@@ -15,25 +22,25 @@ test.describe('Catálogo, Filtros e Sincronização de URL', () => {
     await searchInput.press('Enter')
 
     await expect(page).toHaveURL(/q=Emerald/)
-    await expect(page.locator('text=Emerald Ape #042')).toBeVisible()
-    await expect(page.locator('text=Digital Horizon')).not.toBeVisible()
+    await expect(page.locator('#catalogo').locator('text=Emerald Ape #042')).toBeVisible()
+    await expect(page.locator('#catalogo').locator('text=Digital Horizon')).not.toBeVisible()
   })
 
   test('deve alternar categoria, sincronizar na URL e permitir limpar', async ({ page }) => {
     await page.goto('/')
-    await page.locator('li:has-text("Fotografia")').click()
+    await page.locator('#catalogo li:has-text("Fotografia")').click()
 
     await expect(page).toHaveURL(/category=Fotografia/)
-    await expect(page.locator('text=Digital Horizon')).toBeVisible()
+    await expect(page.locator('#catalogo').locator('text=Digital Horizon')).toBeVisible()
 
     // Limpar filtro
-    await page.locator('button:has-text("Limpar")').first().click()
+    await page.locator('#catalogo button:has-text("Limpar")').first().click()
     await expect(page).not.toHaveURL(/category=/)
   })
 
   test('deve navegar pelo histórico do navegador preservando filtros', async ({ page }) => {
     await page.goto('/')
-    await page.locator('li:has-text("Música")').click()
+    await page.locator('#catalogo li:has-text("Música")').click()
     await expect(page).toHaveURL(/category=M%C3%BAsica/)
 
     await page.goBack()

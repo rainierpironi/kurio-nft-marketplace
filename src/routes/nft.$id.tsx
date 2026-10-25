@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getNFTById, addToCart, addFavorite, removeFavorite, getFavorites } from '@/lib/api'
+import { getNFTById, getNFTs, addToCart, addFavorite, removeFavorite, getFavorites } from '@/lib/api'
 import { Button } from '@/components/button'
 import { Skeleton } from '@/components/skeleton'
+import { NFTCard } from '@/components/NFTCard'
 import { toast } from 'sonner'
 import { useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
@@ -24,6 +25,13 @@ function NFTDetails() {
   const { data: nft, isLoading, isError } = useQuery({
     queryKey: ['nft', id],
     queryFn: () => getNFTById(id),
+  })
+
+  // Consulta NFTs relacionados
+  const { data: catalogData } = useQuery({
+    queryKey: ['nfts-related', nft?.category],
+    queryFn: () => getNFTs({ limit: 8 }),
+    enabled: !!nft,
   })
 
   // Consulta de favoritos para botão na página de detalhes
@@ -74,6 +82,17 @@ function NFTDetails() {
     },
   })
 
+  const buyNowMutation = useMutation({
+    mutationFn: () => addToCart(id, quantity),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cart'] })
+      navigate({ to: '/pagamento' })
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Erro ao processar compra imediata.')
+    },
+  })
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 lg:px-8 py-12 flex flex-col lg:flex-row gap-12">
@@ -111,178 +130,219 @@ function NFTDetails() {
 
   const currentEdition = selectedEdition || nft.editionType
   const isSoldOut = nft.available === 0
+  const relatedNFTs = catalogData?.items.filter((item) => item.id !== nft.id).slice(0, 4) || []
 
   return (
-    <div className="container mx-auto px-4 lg:px-8 py-8 lg:py-12">
-      {/* Breadcrumb */}
-      <nav aria-label="Breadcrumb" className="font-mono text-xs text-muted-foreground mb-8 flex items-center gap-2">
-        <Link to="/" className="hover:text-foreground transition-colors">
-          Início
-        </Link>
-        <span>/</span>
-        <Link to="/" search={{ category: nft.category }} className="hover:text-foreground transition-colors">
-          {nft.category}
-        </Link>
-        <span>/</span>
-        <span className="text-foreground font-bold truncate max-w-xs">{nft.title}</span>
-      </nav>
+    <div className="container mx-auto px-4 lg:px-8 py-8 lg:py-12 space-y-16">
+      <div>
+        {/* Breadcrumb */}
+        <nav aria-label="Breadcrumb" className="font-mono text-xs text-muted-foreground mb-8 flex items-center gap-2">
+          <Link to="/" className="hover:text-foreground transition-colors">
+            Início
+          </Link>
+          <span>/</span>
+          <Link to="/" search={{ category: nft.category }} className="hover:text-foreground transition-colors">
+            {nft.category}
+          </Link>
+          <span>/</span>
+          <span className="text-foreground font-bold truncate max-w-xs">{nft.title}</span>
+        </nav>
 
-      <div className="flex flex-col lg:flex-row gap-10 lg:gap-16">
-        {/* Coluna da Imagem */}
-        <div className="w-full lg:w-1/2 aspect-square bg-secondary rounded-[28px] overflow-hidden border border-border/70 relative shadow-2xl">
-          <img
-            src={nft.image || `https://placehold.co/800x800/e2e8f0/1e293b.png?text=${encodeURIComponent(nft.title)}`}
-            alt={nft.title}
-            className="w-full h-full object-cover"
-          />
-          <button
-            onClick={() => {
-              if (!isAuthenticated) {
-                toast.info('Faça login para favoritar.')
-                setIsAuthOpen(true)
-                return
-              }
-              favoriteMutation.mutate()
-            }}
-            aria-label={isFavorited ? 'Remover favorito' : 'Favoritar'}
-            className="absolute top-5 right-5 w-11 h-11 rounded-full bg-background/70 backdrop-blur-md flex items-center justify-center border border-border hover:bg-background transition-colors cursor-pointer"
-          >
-            <span className="text-lg">{isFavorited ? '❤️' : '🤍'}</span>
-          </button>
-        </div>
-
-        {/* Coluna de Detalhes */}
-        <div className="w-full lg:w-1/2 flex flex-col justify-between">
-          <div>
-            {/* Informações do Criador */}
-            <div className="flex items-center gap-3 mb-4">
-              <img
-                src={nft.creator.avatar}
-                alt={nft.creator.name}
-                className="w-9 h-9 rounded-full object-cover border border-primary/40"
-              />
-              <div>
-                <span className="font-mono text-xs text-muted-foreground">Criado por</span>
-                <p className="font-mono text-xs font-bold text-foreground flex items-center gap-1">
-                  {nft.creator.name}
-                  {nft.creator.verified && <span className="text-primary text-[10px]" title="Verificado">✓</span>}
-                </p>
-              </div>
+        <div className="flex flex-col lg:flex-row gap-10 lg:gap-16">
+          {/* Coluna da Imagem */}
+          <div className="w-full lg:w-1/2 aspect-square bg-secondary rounded-[28px] overflow-hidden border border-border/70 relative shadow-2xl">
+            <img
+              src={nft.image || `https://placehold.co/800x800/e2e8f0/1e293b.png?text=${encodeURIComponent(nft.title)}`}
+              alt={nft.title}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute top-5 left-5 bg-background/80 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-border font-mono text-xs text-foreground font-bold">
+              ID do token: #{nft.id.padStart(4, '0')}
             </div>
-
-            <h1 className="font-sans text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-foreground mb-4">
-              {nft.title}
-            </h1>
-
-            {/* Preço e Avaliação */}
-            <div className="flex flex-wrap items-center gap-6 mb-8 border-b border-border/80 pb-6">
-              <div>
-                <span className="font-mono text-xs text-muted-foreground block">Preço Atual</span>
-                <span className="font-mono text-3xl font-extrabold text-primary">{nft.price} ETH</span>
-              </div>
-
-              <div className="flex items-center gap-1.5 text-primary text-xs font-mono bg-primary/10 border border-primary/20 px-3.5 py-1.5 rounded-full">
-                <span>★ {nft.rating.toFixed(1)}</span>
-                <span className="text-muted-foreground">({nft.reviewsCount} avaliações)</span>
-              </div>
-
-              <div className="font-mono text-xs">
-                <span className="text-muted-foreground">Estoque: </span>
-                <span className={isSoldOut ? 'text-destructive font-bold' : 'text-foreground font-bold'}>
-                  {isSoldOut ? 'Esgotado' : `${nft.available} unidades disponíveis`}
-                </span>
-              </div>
-            </div>
-
-            {/* Descrição e Metadados */}
-            <div className="space-y-6">
-              <div>
-                <h3 className="font-sans font-bold text-sm text-foreground mb-2">Sobre este colecionável:</h3>
-                <p className="font-mono text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                  {nft.description}
-                </p>
-              </div>
-
-              {/* Seletor de Edição */}
-              <div>
-                <h3 className="font-sans font-bold text-sm text-foreground mb-3">Edição:</h3>
-                <div className="flex flex-wrap gap-2.5 font-mono text-xs">
-                  {['1/1', '1/10', '1/50', 'ABERTA'].map((ed) => (
-                    <button
-                      key={ed}
-                      onClick={() => setSelectedEdition(ed)}
-                      className={`px-4 py-1.5 rounded-full border transition-colors cursor-pointer ${
-                        currentEdition === ed
-                          ? 'border-primary bg-primary/10 text-primary font-bold'
-                          : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'
-                      }`}
-                    >
-                      {ed}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Atributos / Traits */}
-              <div>
-                <h3 className="font-sans font-bold text-sm text-foreground mb-3">Atributos & Propriedades:</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <div className="bg-secondary p-3 rounded-xl border border-border/60">
-                    <span className="font-mono text-[11px] text-muted-foreground block">Rede</span>
-                    <span className="font-mono text-xs font-bold text-foreground">{nft.network}</span>
-                  </div>
-                  <div className="bg-secondary p-3 rounded-xl border border-border/60">
-                    <span className="font-mono text-[11px] text-muted-foreground block">Coleção</span>
-                    <span className="font-mono text-xs font-bold text-foreground truncate block">{nft.collection}</span>
-                  </div>
-                  {nft.attributes.map((attr, idx) => (
-                    <div key={idx} className="bg-secondary p-3 rounded-xl border border-border/60">
-                      <span className="font-mono text-[11px] text-muted-foreground block">{attr.trait_type}</span>
-                      <span className="font-mono text-xs font-bold text-foreground">{attr.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <button
+              onClick={() => {
+                if (!isAuthenticated) {
+                  toast.info('Faça login para favoritar.')
+                  setIsAuthOpen(true)
+                  return
+                }
+                favoriteMutation.mutate()
+              }}
+              aria-label={isFavorited ? 'Remover favorito' : 'Favoritar'}
+              className="absolute top-5 right-5 w-11 h-11 rounded-full bg-background/70 backdrop-blur-md flex items-center justify-center border border-border hover:bg-background transition-colors cursor-pointer"
+            >
+              <span className="text-lg">{isFavorited ? '❤️' : '🤍'}</span>
+            </button>
           </div>
 
-          {/* Ações de Compra & Quantidade */}
-          <div className="mt-10 pt-6 border-t border-border/80 flex flex-wrap items-center gap-6">
-            {!isSoldOut && (
-              <div className="flex items-center gap-3 bg-secondary rounded-full p-1 border border-border">
-                <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  disabled={quantity <= 1}
-                  className="w-10 h-10 flex items-center justify-center rounded-full bg-background text-foreground hover:text-primary transition-colors cursor-pointer disabled:opacity-40"
-                >
-                  -
-                </button>
-                <span className="font-mono w-6 text-center font-bold text-sm">{quantity}</span>
-                <button
-                  onClick={() => setQuantity(Math.min(nft.available, quantity + 1))}
-                  disabled={quantity >= nft.available}
-                  className="w-10 h-10 flex items-center justify-center rounded-full bg-background text-foreground hover:text-primary transition-colors cursor-pointer disabled:opacity-40"
-                >
-                  +
-                </button>
+          {/* Coluna de Detalhes */}
+          <div className="w-full lg:w-1/2 flex flex-col justify-between">
+            <div>
+              {/* Informações do Criador */}
+              <div className="flex items-center gap-3 mb-4">
+                <img
+                  src={nft.creator.avatar}
+                  alt={nft.creator.name}
+                  className="w-9 h-9 rounded-full object-cover border border-primary/40"
+                />
+                <div>
+                  <span className="font-mono text-xs text-muted-foreground">Criado por</span>
+                  <p className="font-mono text-xs font-bold text-foreground flex items-center gap-1">
+                    {nft.creator.name}
+                    {nft.creator.verified && <span className="text-primary text-[10px]" title="Verificado">✓</span>}
+                  </p>
+                </div>
               </div>
-            )}
 
-            <Button
-              size="lg"
-              disabled={isSoldOut || cartMutation.isPending}
-              onClick={() => cartMutation.mutate()}
-              className="flex-1 rounded-full font-bold font-sans text-sm h-12 text-primary-foreground shadow-lg shadow-primary/20"
-            >
-              {cartMutation.isPending
-                ? 'Adicionando ao carrinho...'
-                : isSoldOut
-                ? 'Item Esgotado'
-                : `Adicionar ao Carrinho (${(parseFloat(nft.price) * quantity).toFixed(2)} ETH)`}
-            </Button>
+              <h1 className="font-sans text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-foreground mb-4">
+                {nft.title}
+              </h1>
+
+              {/* Preço e Avaliação */}
+              <div className="flex flex-wrap items-center gap-6 mb-8 border-b border-border/80 pb-6">
+                <div>
+                  <span className="font-mono text-xs text-muted-foreground block">Preço Atual</span>
+                  <span className="font-mono text-3xl font-extrabold text-primary">{nft.price} ETH</span>
+                </div>
+
+                <div className="flex items-center gap-1.5 text-primary text-xs font-mono bg-primary/10 border border-primary/20 px-3.5 py-1.5 rounded-full">
+                  <span>★ {nft.rating.toFixed(1)}</span>
+                  <span className="text-muted-foreground">({nft.reviewsCount} avaliações)</span>
+                </div>
+
+                <div className="font-mono text-xs">
+                  <span className="text-muted-foreground">Estoque: </span>
+                  <span className={isSoldOut ? 'text-destructive font-bold' : 'text-foreground font-bold'}>
+                    {isSoldOut ? 'Esgotado' : `${nft.available} unidades disponíveis`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Descrição e Metadados */}
+              <div className="space-y-6">
+                <div>
+                  <h3 className="font-sans font-bold text-sm text-foreground mb-2">Sobre este colecionável:</h3>
+                  <p className="font-mono text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                    {nft.description}
+                  </p>
+                </div>
+
+                {/* Seletor de Edição */}
+                <div>
+                  <h3 className="font-sans font-bold text-sm text-foreground mb-3">Edição:</h3>
+                  <div className="flex flex-wrap gap-2.5 font-mono text-xs">
+                    {['1/1', '1/10', '1/50', 'ABERTA'].map((ed) => (
+                      <button
+                        key={ed}
+                        onClick={() => setSelectedEdition(ed)}
+                        className={`px-4 py-1.5 rounded-full border transition-colors cursor-pointer ${
+                          currentEdition === ed
+                            ? 'border-primary bg-primary/10 text-primary font-bold'
+                            : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'
+                        }`}
+                      >
+                        {ed}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Atributos / Traits */}
+                <div>
+                  <h3 className="font-sans font-bold text-sm text-foreground mb-3">Atributos & Propriedades:</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="bg-secondary p-3 rounded-xl border border-border/60">
+                      <span className="font-mono text-[11px] text-muted-foreground block">Rede</span>
+                      <span className="font-mono text-xs font-bold text-foreground">{nft.network}</span>
+                    </div>
+                    <div className="bg-secondary p-3 rounded-xl border border-border/60">
+                      <span className="font-mono text-[11px] text-muted-foreground block">Coleção</span>
+                      <span className="font-mono text-xs font-bold text-foreground truncate block">{nft.collection}</span>
+                    </div>
+                    {nft.attributes.map((attr, idx) => (
+                      <div key={idx} className="bg-secondary p-3 rounded-xl border border-border/60">
+                        <span className="font-mono text-[11px] text-muted-foreground block">{attr.trait_type}</span>
+                        <span className="font-mono text-xs font-bold text-foreground">{attr.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Ações de Compra & Quantidade */}
+            <div className="mt-10 pt-6 border-t border-border/80 flex flex-wrap items-center gap-4">
+              {!isSoldOut && (
+                <div className="flex items-center gap-3 bg-secondary rounded-full p-1 border border-border">
+                  <button
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    disabled={quantity <= 1}
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-background text-foreground hover:text-primary transition-colors cursor-pointer disabled:opacity-40"
+                  >
+                    -
+                  </button>
+                  <span className="font-mono w-6 text-center font-bold text-sm">{quantity}</span>
+                  <button
+                    onClick={() => setQuantity(Math.min(nft.available, quantity + 1))}
+                    disabled={quantity >= nft.available}
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-background text-foreground hover:text-primary transition-colors cursor-pointer disabled:opacity-40"
+                  >
+                    +
+                  </button>
+                </div>
+              )}
+
+              <Button
+                size="lg"
+                disabled={isSoldOut || cartMutation.isPending}
+                onClick={() => cartMutation.mutate()}
+                className="flex-1 rounded-full font-bold font-sans text-sm h-12 text-primary-foreground shadow-lg shadow-primary/20"
+              >
+                {cartMutation.isPending
+                  ? 'Adicionando ao carrinho...'
+                  : isSoldOut
+                  ? 'Item Esgotado'
+                  : `Adicionar ao Carrinho (${(parseFloat(nft.price) * quantity).toFixed(2)} ETH)`}
+              </Button>
+
+              {!isSoldOut && (
+                <Button
+                  variant="outline"
+                  size="lg"
+                  disabled={buyNowMutation.isPending}
+                  onClick={() => buyNowMutation.mutate()}
+                  className="rounded-full font-mono font-bold text-xs h-12 px-6 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                >
+                  {buyNowMutation.isPending ? 'Processando...' : 'Comprar Agora →'}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Seção: Colecionáveis Relacionados (Frame Figma) */}
+      {relatedNFTs.length > 0 && (
+        <section className="pt-8 border-t border-border/60 space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="font-mono text-xs text-primary font-bold uppercase tracking-widest block">
+                Continue Explorando
+              </span>
+              <h2 className="font-sans text-2xl font-black text-foreground">Colecionáveis Relacionados</h2>
+            </div>
+            <Link to="/" className="font-mono text-xs text-primary hover:underline">
+              Ver Catálogo Completo →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {relatedNFTs.map((item) => (
+              <NFTCard key={item.id} nft={item} onAuthRequired={() => setIsAuthOpen(true)} />
+            ))}
+          </div>
+        </section>
+      )}
 
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </div>

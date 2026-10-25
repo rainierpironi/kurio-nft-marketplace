@@ -6,24 +6,28 @@
   :root {
     --font-mono: 'Space Mono', monospace;
     --font-sans: 'Inter', sans-serif;
-    
-    --background: 24 20% 5%;
-    --foreground: 0 0% 95%;
+
+    --background: #0F0C0A;
+    --foreground: #F2F2F2;
+    --border: #2C2420;
+    --ring: #7EE622;
+    --radius: 0.75rem;
+    --radius-md: 0.5rem;
   }
 }
 
 @layer base {
   * {
-    border-color: var(--border);
-    outline-color: var(--ring);
+    border-color: #2C2420;
   }
   html {
     color-scheme: dark;
+    scroll-behavior: smooth;
   }
   body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
-    font-family: var(--font-mono); 
+    background-color: #0F0C0A;
+    color: #F2F2F2;
+    font-family: var(--font-mono);
     -webkit-font-smoothing: antialiased;
   }
   h1, h2, h3, .font-sans-title {

@@ -27,6 +27,8 @@ export function DevTools() {
   const handleResetFixture = async () => {
     try {
       await resetFixture()
+      localStorage.setItem('MSW_SCENARIO', 'success')
+      setScenario('success')
       queryClient.clear()
       toast.success('Fixtures de simulação restauradas com sucesso!')
     } catch {
@@ -39,7 +41,7 @@ export function DevTools() {
       <button
         onClick={() => setIsOpen(true)}
         aria-label="Abrir Painel de Simulação"
-        className="fixed bottom-4 left-4 z-[9999] bg-card/90 hover:bg-card border border-border px-3 py-1.5 rounded-full shadow-2xl font-mono text-xs text-primary font-bold flex items-center gap-1.5 backdrop-blur-md cursor-pointer transition-all hover:scale-105"
+        className="fixed bottom-20 md:bottom-4 left-4 z-[9999] bg-card/95 hover:bg-card border border-border px-3 py-1.5 rounded-full shadow-2xl font-mono text-xs text-primary font-bold flex items-center gap-1.5 backdrop-blur-md cursor-pointer transition-all hover:scale-105"
       >
         <span>⚡</span> MSW DevTools
       </button>
@@ -47,7 +49,7 @@ export function DevTools() {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 z-[9999] bg-card border border-border/80 p-4 rounded-2xl shadow-2xl font-mono text-xs flex flex-col gap-3 w-60 backdrop-blur-md animate-in slide-in-from-bottom-2 duration-200">
+    <div className="fixed bottom-20 md:bottom-4 left-4 z-[9999] bg-card border border-border/80 p-4 rounded-2xl shadow-2xl font-mono text-xs flex flex-col gap-3 w-64 backdrop-blur-md animate-in slide-in-from-bottom-2 duration-200">
       <div className="flex items-center justify-between pb-2 border-b border-border/60">
         <div className="text-primary font-bold uppercase text-[11px] flex items-center gap-1">
           <span>⚡</span> MSW Simulação
@@ -73,6 +75,7 @@ export function DevTools() {
           <option value="payment_failed">Falha Pagamento (402)</option>
           <option value="timeout">Timeout de Rede</option>
           <option value="favorites_fail">Falha Favorito (Rollback)</option>
+          <option value="session_expired">Sessão Expirada (401)</option>
         </select>
       </div>
 

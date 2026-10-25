@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getCart, createOrder, getCheckoutQuote } from '@/lib/api'
+import { getCart, createOrder, getCheckoutQuote, updateCartItem, removeFromCart } from '@/lib/api'
 import { Button } from '@/components/button'
 import { Separator } from '@/components/separator'
 import { toast } from 'sonner'
@@ -11,17 +11,22 @@ export const Route = createFileRoute('/pagamento')({
   component: Pagamento,
 })
 
+function generateIdempotencyKey() {
+  return window.crypto && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `idemp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+}
+
 function Pagamento() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { user: authUser } = useAuth()
 
   // Chave de Idempotência persistente na montagem do checkout para evitar duplicidade
-  const [idempotencyKey] = useState(() => {
-    return window.crypto && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `idemp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
-  })
+  const [idempotencyKey, setIdempotencyKey] = useState(generateIdempotencyKey)
+
+  // Controle de Cotação Desatualizada por Evento em Tempo Real (WebSocket)
+  const [quoteStale, setQuoteStale] = useState(false)
 
   // Campos do Formulário Figma
   const [displayName, setDisplayName] = useState('')
@@ -60,6 +65,24 @@ function Pagamento() {
     queryFn: getCart,
   })
 
+  // Escuta evento de alteração em tempo real nos itens do carrinho
+  useEffect(() => {
+    const handleRealtimeChange = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (!detail || !cartData?.items) return
+      const isInCart = cartData.items.some((item) => item.nftId === detail.id)
+      if (isInCart) {
+        setQuoteStale(true)
+        toast.warning(
+          `Cotação alterada! O item "${detail.title}" mudou para ${detail.price} ETH. Confirme a nova cotação antes de pagar.`
+        )
+      }
+    }
+
+    window.addEventListener('KURIO_NFT_UPDATED', handleRealtimeChange)
+    return () => window.removeEventListener('KURIO_NFT_UPDATED', handleRealtimeChange)
+  }, [cartData?.items])
+
   // Cotação com validação de cupom e gas fee
   const { data: quoteData, isLoading: isQuoteLoading } = useQuery({
     queryKey: ['checkout-quote', appliedCoupon, cartData?.items],
@@ -69,10 +92,35 @@ function Pagamento() {
 
   const [hasFailed, setHasFailed] = useState(false)
 
+  // Verifica se algum item excede o estoque disponível
+  const hasStockConflict = cartData?.items.some((item) => {
+    const available = item.nft?.available ?? 0
+    return item.quantity > available
+  })
+
+  const adjustItemMutation = useMutation({
+    mutationFn: async ({ nftId, available }: { nftId: string; available: number }) => {
+      if (available <= 0) {
+        return removeFromCart(nftId)
+      }
+      return updateCartItem(nftId, available)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cart'] })
+      queryClient.invalidateQueries({ queryKey: ['checkout-quote'] })
+      toast.success('Quantidade ajustada para o estoque disponível!')
+    },
+  })
+
   // Mutação do Pedido com Chave de Idempotência
   const orderMutation = useMutation({
     mutationFn: async () => {
-      // Validação prévia dos campos essenciais do layout
+      if (quoteStale) {
+        throw new Error('A cotação mudou em tempo real. Confirme os novos valores antes de finalizar.')
+      }
+      if (hasStockConflict) {
+        throw new Error('Um item no carrinho excede o estoque disponível. Ajuste antes de pagar.')
+      }
       if (!displayName.trim() || !username.trim() || !email.trim()) {
         throw new Error('Por favor, preencha nome, nome de usuário e e-mail.')
       }
@@ -120,11 +168,19 @@ function Pagamento() {
     },
   })
 
+  const handleConfirmNewQuote = () => {
+    setQuoteStale(false)
+    setIdempotencyKey(generateIdempotencyKey())
+    queryClient.invalidateQueries({ queryKey: ['checkout-quote'] })
+    toast.success('Nova cotação confirmada! Você já pode concluir o pagamento.')
+  }
+
   const handleApplyCoupon = (e: React.FormEvent) => {
     e.preventDefault()
     const clean = couponCode.trim().toUpperCase()
     if (clean === 'KURIO10' || clean === 'GREENMINT20') {
       setAppliedCoupon(clean)
+      setIdempotencyKey(generateIdempotencyKey())
       toast.success(`Cupom ${clean} aplicado!`)
     } else {
       toast.error('Cupom inválido. Tente KURIO10.')
@@ -164,6 +220,49 @@ function Pagamento() {
         <span>/</span>
         <span className="text-foreground font-bold">Pagamento</span>
       </div>
+
+      {/* Banner de Revalidação de Cotação em Tempo Real (Requisito Seção 3 e 7 do Desafio) */}
+      {quoteStale && (
+        <div
+          role="alert"
+          className="mb-8 bg-primary/10 border border-primary/50 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in duration-200"
+        >
+          <div className="space-y-1">
+            <p className="font-sans font-bold text-sm text-primary flex items-center gap-2">
+              <span>📡</span> Atualização de Preço ou Disponibilidade Detectada!
+            </p>
+            <p className="font-mono text-xs text-muted-foreground">
+              Os valores dos itens no seu carrinho mudaram durante a navegação. Por segurança, revise o novo total e
+              confirme a cotação atualizada antes de prosseguir.
+            </p>
+          </div>
+          <Button
+            type="button"
+            onClick={handleConfirmNewQuote}
+            className="rounded-full font-mono text-xs font-bold px-6 shrink-0"
+          >
+            Confirmar Nova Cotação ({quoteData?.total || '0.0000'} ETH)
+          </Button>
+        </div>
+      )}
+
+      {/* Banner de Conflito de Estoque */}
+      {hasStockConflict && (
+        <div
+          role="alert"
+          className="mb-8 bg-destructive/10 border border-destructive/50 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+        >
+          <div className="space-y-1">
+            <p className="font-sans font-bold text-sm text-destructive flex items-center gap-2">
+              <span>⚠</span> Estoque Insuficiente para um ou mais itens
+            </p>
+            <p className="font-mono text-xs text-muted-foreground">
+              A disponibilidade de um NFT no seu carrinho diminuiu em tempo real. Ajuste as quantidades abaixo para
+              continuar.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col lg:flex-row gap-12 lg:gap-16">
         {/* Lado Esquerdo: Formulário Completo do Figma (Perfil do Colecionador / Dados da Compra) */}
@@ -341,35 +440,59 @@ function Pagamento() {
 
             {/* Lista dos NFTs */}
             <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-              {cartData?.items.map((item) => (
-                <div
-                  key={item.nftId}
-                  className="flex items-center gap-3 bg-secondary/80 p-3 rounded-2xl border border-border/50"
-                >
-                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-background">
-                    <img
-                      src={
-                        item.nft?.image ||
-                        `https://placehold.co/100x100/e2e8f0/1e293b.png?text=${encodeURIComponent(item.nft?.title?.charAt(0) || 'N')}`
-                      }
-                      alt={item.nft?.title}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
+              {cartData?.items.map((item) => {
+                const available = item.nft?.available ?? 0
+                const isExceeded = item.quantity > available
 
-                  <div className="flex-1 min-w-0">
-                    <p className="font-sans font-bold text-xs text-foreground truncate">{item.nft?.title}</p>
-                    <p className="font-mono text-[11px] text-muted-foreground">ID: #{item.nftId}</p>
-                  </div>
+                return (
+                  <div
+                    key={item.nftId}
+                    className={`flex flex-col gap-2 bg-secondary/80 p-3 rounded-2xl border ${
+                      isExceeded ? 'border-destructive/70 bg-destructive/5' : 'border-border/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-background">
+                        <img
+                          src={
+                            item.nft?.image ||
+                            `https://placehold.co/100x100/e2e8f0/1e293b.png?text=${encodeURIComponent(item.nft?.title?.charAt(0) || 'N')}`
+                          }
+                          alt={item.nft?.title}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
 
-                  <div className="text-right font-mono text-xs">
-                    <span className="text-muted-foreground block">x{item.quantity}</span>
-                    <span className="font-bold text-primary">
-                      {(parseFloat(item.nft?.price || '0') * item.quantity).toFixed(2)} ETH
-                    </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-sans font-bold text-xs text-foreground truncate">{item.nft?.title}</p>
+                        <p className="font-mono text-[11px] text-muted-foreground">
+                          ID: #{item.nftId} • Disp: {available}
+                        </p>
+                      </div>
+
+                      <div className="text-right font-mono text-xs">
+                        <span className="text-muted-foreground block">x{item.quantity}</span>
+                        <span className="font-bold text-primary">
+                          {(parseFloat(item.nft?.price || '0') * item.quantity).toFixed(2)} ETH
+                        </span>
+                      </div>
+                    </div>
+
+                    {isExceeded && (
+                      <div className="flex items-center justify-between pt-2 border-t border-destructive/30 font-mono text-[11px] text-destructive">
+                        <span>Disponível agora: {available} un.</span>
+                        <button
+                          type="button"
+                          onClick={() => adjustItemMutation.mutate({ nftId: item.nftId, available })}
+                          className="underline font-bold cursor-pointer hover:text-foreground"
+                        >
+                          {available > 0 ? `Ajustar para ${available}` : 'Remover item'}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
             {/* Cupom de Desconto */}
@@ -390,6 +513,7 @@ function Pagamento() {
                   onClick={() => {
                     setAppliedCoupon(null)
                     setCouponCode('')
+                    setIdempotencyKey(generateIdempotencyKey())
                   }}
                   className="font-mono text-xs rounded-xl border-destructive/50 text-destructive"
                 >
@@ -438,17 +562,29 @@ function Pagamento() {
               </div>
             )}
 
-            <Button
-              disabled={orderMutation.isPending}
-              onClick={() => orderMutation.mutate()}
-              className="w-full h-13 text-sm font-black rounded-full font-sans text-primary-foreground shadow-lg shadow-primary/20 hover:scale-[1.01] transition-transform"
-            >
-              {orderMutation.isPending
-                ? 'Processando na blockchain...'
-                : hasFailed
-                ? 'Tentar Novamente (Recuperar Pedido)'
-                : 'Confirmar e Pagar'}
-            </Button>
+            {quoteStale ? (
+              <Button
+                type="button"
+                onClick={handleConfirmNewQuote}
+                className="w-full h-12 text-sm font-black rounded-full font-sans bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+              >
+                Confirmar Nova Cotação para Prosseguir
+              </Button>
+            ) : (
+              <Button
+                disabled={orderMutation.isPending || hasStockConflict}
+                onClick={() => orderMutation.mutate()}
+                className="w-full h-12 text-sm font-black rounded-full font-sans text-primary-foreground shadow-lg shadow-primary/20 hover:scale-[1.01] transition-transform"
+              >
+                {orderMutation.isPending
+                  ? 'Processando na blockchain...'
+                  : hasStockConflict
+                  ? 'Ajuste o Estoque Acima'
+                  : hasFailed
+                  ? 'Tentar Novamente (Recuperar Pedido)'
+                  : 'Confirmar e Pagar'}
+              </Button>
+            )}
           </div>
         </div>
       </div>

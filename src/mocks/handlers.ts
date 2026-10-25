@@ -269,25 +269,13 @@ const INITIAL_USERS: Record<string, MockUser> = {
   }
 }
 
-// Estados mutáveis mantidos em memória durante a sessão
-let nfts: MockNFT[] = JSON.parse(JSON.stringify(INITIAL_NFTS))
-let users: Record<string, MockUser> = JSON.parse(JSON.stringify(INITIAL_USERS))
-let passwords: Record<string, string> = {
-  'alex@kurio.art': 'password123',
-  'sara@kurio.art': 'password123'
-}
+// Estados mutáveis mantidos em memória e sincronizados em localStorage para sustentar refresh (F5)
+const MOCK_STATE_KEY = 'KURIO_MOCK_STATE_V1'
 
-// Carrinho de visitante e carrinhos por usuário
-let visitorCart: Array<{ nftId: string; quantity: number }> = []
-let userCarts: Record<string, Array<{ nftId: string; quantity: number }>> = {
-  'usr-1': [],
-  'usr-2': []
-}
-
-// Registro imutável de pedidos processados
 export interface ProcessedOrder {
   id: string
   idempotencyKey: string
+  payloadHash?: string
   userId?: string
   items: Array<{ nftId: string; quantity: number; title: string; price: string }>
   subtotal: string
@@ -302,10 +290,67 @@ export interface ProcessedOrder {
   status: 'confirmed' | 'pending' | 'rejected'
 }
 
+let nfts: MockNFT[] = JSON.parse(JSON.stringify(INITIAL_NFTS))
+let users: Record<string, MockUser> = JSON.parse(JSON.stringify(INITIAL_USERS))
+let passwords: Record<string, string> = {
+  'alex@kurio.art': 'password123',
+  'sara@kurio.art': 'password123'
+}
+let visitorCart: Array<{ nftId: string; quantity: number }> = []
+let userCarts: Record<string, Array<{ nftId: string; quantity: number }>> = {
+  'usr-1': [],
+  'usr-2': []
+}
 const processedOrders = new Map<string, ProcessedOrder>()
+
+function saveMockState() {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const state = {
+        nfts,
+        users,
+        passwords,
+        visitorCart,
+        userCarts,
+        processedOrders: Array.from(processedOrders.entries())
+      }
+      window.localStorage.setItem(MOCK_STATE_KEY, JSON.stringify(state))
+    }
+  } catch {
+    // Ignora falha de quota
+  }
+}
+
+function loadMockState() {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const raw = window.localStorage.getItem(MOCK_STATE_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      if (parsed.nfts) nfts = parsed.nfts
+      if (parsed.users) users = parsed.users
+      if (parsed.passwords) passwords = parsed.passwords
+      if (parsed.visitorCart) visitorCart = parsed.visitorCart
+      if (parsed.userCarts) userCarts = parsed.userCarts
+      if (Array.isArray(parsed.processedOrders)) {
+        processedOrders.clear()
+        parsed.processedOrders.forEach(([k, v]: [string, ProcessedOrder]) => {
+          processedOrders.set(k, v)
+        })
+      }
+    }
+  } catch {
+    // Ignora erro de parse
+  }
+}
+
+loadMockState()
 
 // Auxiliar para obter usuário autenticado pelo token Bearer
 function getAuthenticatedUser(request: Request): MockUser | null {
+  if (typeof window !== 'undefined' && window.localStorage?.getItem('MSW_SCENARIO') === 'session_expired') {
+    return null
+  }
   const authHeader = request.headers.get('authorization')
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null
   const token = authHeader.replace('Bearer ', '').trim()
@@ -328,6 +373,7 @@ function setActiveCart(userId: string | null, newCart: Array<{ nftId: string; qu
   } else {
     visitorCart = newCart
   }
+  saveMockState()
 }
 
 // 1. Intercepta conexões WebSocket
@@ -354,6 +400,7 @@ export const handlers = [
           version: Date.now()
         })
       })
+      saveMockState()
     })
   }),
 
@@ -363,9 +410,18 @@ export const handlers = [
   http.post('/api/admin/reset', () => {
     nfts = JSON.parse(JSON.stringify(INITIAL_NFTS))
     users = JSON.parse(JSON.stringify(INITIAL_USERS))
+    passwords = {
+      'alex@kurio.art': 'password123',
+      'sara@kurio.art': 'password123'
+    }
     visitorCart = []
     userCarts = { 'usr-1': [], 'usr-2': [] }
     processedOrders.clear()
+    try {
+      window.localStorage.removeItem(MOCK_STATE_KEY)
+    } catch {
+      // ignore
+    }
     return HttpResponse.json({ success: true, message: 'Fixtures restauradas com sucesso' })
   }),
 
@@ -381,6 +437,10 @@ export const handlers = [
 
     if (!user || expectedPass !== password) {
       return HttpResponse.json({ message: 'Credenciais inválidas' }, { status: 401 })
+    }
+
+    if (typeof window !== 'undefined' && window.localStorage?.getItem('MSW_SCENARIO') === 'session_expired') {
+      window.localStorage.setItem('MSW_SCENARIO', 'success')
     }
 
     const token = `mock-token-${user.id}`
@@ -419,6 +479,7 @@ export const handlers = [
     users[newId] = newUser
     passwords[email.toLowerCase()] = password
     userCarts[newId] = []
+    saveMockState()
 
     const token = `mock-token-${newId}`
     return HttpResponse.json({ token, user: newUser }, { status: 201 })
@@ -525,6 +586,7 @@ export const handlers = [
     if (!user.favorites.includes(nftId)) {
       user.favorites.push(nftId)
     }
+    saveMockState()
     return HttpResponse.json({ success: true, favorites: user.favorites })
   }),
 
@@ -542,6 +604,7 @@ export const handlers = [
 
     const nftId = params.id as string
     user.favorites = user.favorites.filter((id) => id !== nftId)
+    saveMockState()
     return HttpResponse.json({ success: true, favorites: user.favorites })
   }),
 
@@ -580,6 +643,7 @@ export const handlers = [
     } else {
       currentCart.push({ nftId, quantity })
     }
+    saveMockState()
 
     return HttpResponse.json({ success: true, cartTotal: currentCart.length }, { status: 201 })
   }),
@@ -600,6 +664,7 @@ export const handlers = [
     }
 
     item.quantity = quantity
+    saveMockState()
     return HttpResponse.json({ success: true })
   }),
 
@@ -630,6 +695,7 @@ export const handlers = [
 
     userCarts[user.id] = userCart
     visitorCart = []
+    saveMockState()
 
     return HttpResponse.json({ success: true, itemsCount: userCart.length })
   }),
@@ -685,15 +751,27 @@ export const handlers = [
       return HttpResponse.json({ message: 'Chave de idempotência (x-idempotency-key) é obrigatória.' }, { status: 400 })
     }
 
-    // Se já foi processado com essa mesma chave, retorna o mesmo pedido (idempotente)
+    const body = (await request.json()) as any
+    const payloadHash = JSON.stringify({
+      total: body.total || '0.00',
+      network: body.network || 'Ethereum',
+      walletAddress: body.walletAddress || ''
+    })
+
+    // Se já foi processado com essa mesma chave, valida conflito de carga ou recupera o mesmo pedido (idempotente)
     if (processedOrders.has(idempotencyKey)) {
       await delay(600)
       const existing = processedOrders.get(idempotencyKey)!
+      if (existing.payloadHash && existing.payloadHash !== payloadHash) {
+        return HttpResponse.json(
+          { message: 'Conflito de idempotência: chave reutilizada com conteúdo de pedido diferente.' },
+          { status: 409 }
+        )
+      }
       return HttpResponse.json({ success: true, order: existing, recovered: true }, { status: 200 })
     }
 
     const user = getAuthenticatedUser(request)
-    const body = (await request.json()) as any
     const currentCart = getActiveCart(user ? user.id : null)
 
     if (currentCart.length === 0) {
@@ -713,6 +791,7 @@ export const handlers = [
       const orderSnapshot: ProcessedOrder = {
         id: orderId,
         idempotencyKey,
+        payloadHash,
         userId: user?.id,
         items: currentCart.map((c) => {
           const n = nfts.find((nft) => nft.id === c.nftId)
@@ -754,6 +833,7 @@ export const handlers = [
     const orderSnapshot: ProcessedOrder = {
       id: orderId,
       idempotencyKey,
+      payloadHash,
       userId: user?.id,
       items: currentCart.map((c) => {
         const n = nfts.find((nft) => nft.id === c.nftId)
@@ -810,6 +890,7 @@ export const handlers = [
     if (username) user.username = username
     if (bio !== undefined) user.bio = bio
     if (avatar) user.avatar = avatar
+    saveMockState()
 
     return HttpResponse.json({ user })
   }),
@@ -830,6 +911,7 @@ export const handlers = [
     }
 
     passwords[user.email.toLowerCase()] = newPassword
+    saveMockState()
     return HttpResponse.json({ success: true, message: 'Senha alterada com sucesso' })
   }),
 
@@ -871,6 +953,7 @@ export const handlers = [
     }
 
     user.wallets.push(newWallet)
+    saveMockState()
     return HttpResponse.json({ success: true, wallet: newWallet }, { status: 201 })
   }),
 
@@ -891,6 +974,7 @@ export const handlers = [
       user.wallets.forEach((w) => (w.isPrimary = false))
       wallet.isPrimary = true
     }
+    saveMockState()
 
     return HttpResponse.json({ success: true, wallet })
   }),
@@ -902,6 +986,7 @@ export const handlers = [
     }
 
     user.wallets = user.wallets.filter((w) => w.id !== params.id)
+    saveMockState()
     return HttpResponse.json({ success: true })
   })
 ]

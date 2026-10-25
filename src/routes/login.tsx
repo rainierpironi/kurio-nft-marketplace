@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/button'
 import { useAuth } from '@/context/AuthContext'
 import { toast } from 'sonner'
@@ -16,10 +16,11 @@ function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Se já estiver logado, redireciona para o perfil
-  if (isAuthenticated) {
-    navigate({ to: '/perfil' })
-    return null
-  }
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate({ to: '/perfil' })
+    }
+  }, [isAuthenticated, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,7 +32,7 @@ function LoginPage() {
     setIsSubmitting(true)
     try {
       await login({ email, password })
-      navigate({ to: '/' })
+      navigate({ to: '/perfil' })
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Falha ao autenticar')
     } finally {
@@ -43,7 +44,7 @@ function LoginPage() {
     setIsSubmitting(true)
     try {
       await login({ email: userEmail, password: 'password123' })
-      navigate({ to: '/' })
+      navigate({ to: '/perfil' })
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Falha ao autenticar')
     } finally {

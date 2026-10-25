@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/button'
 import { useAuth } from '@/context/AuthContext'
 import { toast } from 'sonner'
@@ -19,10 +19,11 @@ function CadastroPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  if (isAuthenticated) {
-    navigate({ to: '/perfil' })
-    return null
-  }
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate({ to: '/perfil' })
+    }
+  }, [isAuthenticated, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -72,7 +73,7 @@ function CadastroPage() {
         </div>
 
         {/* Formulário de Registro */}
-        <form onSubmit={handleSubmit} className="space-y-4 font-mono text-xs">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4 font-mono text-xs">
           <div>
             <label className="block text-muted-foreground mb-1.5 font-bold">Nome Completo</label>
             <input

@@ -14,13 +14,14 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], channel: 'chrome' },
     },
     {
       name: 'mobile',
       use: {
         viewport: { width: 390, height: 844 },
         userAgent: devices['iPhone 12'].userAgent,
+        channel: 'chrome',
       },
     },
   ],

@@ -3,21 +3,37 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getMe, updateProfile, updatePassword, addWallet, updateWallet, deleteWallet, getNFTs } from '@/lib/api'
 import { Button } from '@/components/button'
 import { Skeleton } from '@/components/skeleton'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
 import { NFTCard } from '@/components/NFTCard'
 
+type ProfileTab = 'perfil' | 'carteiras' | 'favoritos' | 'seguranca'
+
 export const Route = createFileRoute('/perfil')({
+  validateSearch: (search: Record<string, unknown>): { tab?: ProfileTab } => {
+    const t = search.tab
+    if (t === 'perfil' || t === 'carteiras' || t === 'favoritos' || t === 'seguranca') {
+      return { tab: t }
+    }
+    return {}
+  },
   component: ProfilePage,
 })
 
 function ProfilePage() {
+  const { tab } = Route.useSearch()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { isAuthenticated, logout } = useAuth()
 
-  const [activeTab, setActiveTab] = useState<'perfil' | 'carteiras' | 'favoritos' | 'seguranca'>('perfil')
+  const [activeTab, setActiveTab] = useState<ProfileTab>(tab || 'perfil')
+
+  useEffect(() => {
+    if (tab) {
+      setActiveTab(tab)
+    }
+  }, [tab])
 
   // Estados de edição de perfil
   const [name, setName] = useState('')
@@ -176,7 +192,10 @@ function ProfilePage() {
       {/* Tabs de Navegação */}
       <div className="flex gap-4 border-b border-border mb-8 overflow-x-auto pb-2 font-mono text-xs">
         <button
-          onClick={() => setActiveTab('perfil')}
+          onClick={() => {
+            setActiveTab('perfil')
+            navigate({ to: '/perfil', search: {} })
+          }}
           className={`pb-2 whitespace-nowrap cursor-pointer transition-colors ${
             activeTab === 'perfil'
               ? 'text-primary border-b-2 border-primary font-bold'
@@ -186,7 +205,10 @@ function ProfilePage() {
           Editar Perfil
         </button>
         <button
-          onClick={() => setActiveTab('carteiras')}
+          onClick={() => {
+            setActiveTab('carteiras')
+            navigate({ to: '/perfil', search: { tab: 'carteiras' } })
+          }}
           className={`pb-2 whitespace-nowrap cursor-pointer transition-colors ${
             activeTab === 'carteiras'
               ? 'text-primary border-b-2 border-primary font-bold'
@@ -196,7 +218,10 @@ function ProfilePage() {
           Carteiras Conectadas ({user?.wallets.length || 0})
         </button>
         <button
-          onClick={() => setActiveTab('favoritos')}
+          onClick={() => {
+            setActiveTab('favoritos')
+            navigate({ to: '/perfil', search: { tab: 'favoritos' } })
+          }}
           className={`pb-2 whitespace-nowrap cursor-pointer transition-colors ${
             activeTab === 'favoritos'
               ? 'text-primary border-b-2 border-primary font-bold'
@@ -206,7 +231,10 @@ function ProfilePage() {
           Favoritos ({user?.favorites.length || 0})
         </button>
         <button
-          onClick={() => setActiveTab('seguranca')}
+          onClick={() => {
+            setActiveTab('seguranca')
+            navigate({ to: '/perfil', search: { tab: 'seguranca' } })
+          }}
           className={`pb-2 whitespace-nowrap cursor-pointer transition-colors ${
             activeTab === 'seguranca'
               ? 'text-primary border-b-2 border-primary font-bold'

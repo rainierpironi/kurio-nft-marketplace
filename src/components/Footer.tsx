@@ -19,7 +19,7 @@ export function Footer() {
   }
 
   return (
-    <footer className="w-full bg-[#0D0A08] border-t border-border/80 text-foreground pt-16 pb-12 mt-auto z-10 relative">
+    <footer className="w-full bg-[#0D0A08] border-t border-border/80 text-foreground pt-16 pb-24 md:pb-12 mt-auto z-10 relative">
       <div className="container mx-auto px-4 lg:px-8 max-w-7xl flex flex-col gap-16">
         
         {/* Frame 122: Três Medalhões de Destaque + Newsletter (Figma Specification) */}

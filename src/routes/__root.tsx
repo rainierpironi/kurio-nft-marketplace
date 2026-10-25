@@ -27,7 +27,9 @@ function RootContent() {
       toast.info(`Atualização ao vivo: ${updatedNft.title} agora está por ${updatedNft.price} ETH!`)
       queryClient.invalidateQueries({ queryKey: ['nfts'] })
       queryClient.invalidateQueries({ queryKey: ['cart'] })
+      queryClient.invalidateQueries({ queryKey: ['checkout-quote'] })
       queryClient.invalidateQueries({ queryKey: ['nft', updatedNft.id] })
+      window.dispatchEvent(new CustomEvent('KURIO_NFT_UPDATED', { detail: updatedNft }))
     })
 
     socket.on('order.updated', (orderUpdate: any) => {
