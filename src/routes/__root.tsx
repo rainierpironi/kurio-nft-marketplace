@@ -1,5 +1,4 @@
 import { createRootRoute, Outlet } from '@tanstack/react-router'
-import { TanStackRouterDevtools } from '@tanstack/router-devtools'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { DevTools } from '@/components/DevTools'
@@ -59,7 +58,6 @@ function RootContent() {
       <Footer />
       <Toaster theme="dark" richColors position="bottom-center" />
       <DevTools />
-      <TanStackRouterDevtools position="bottom-right" />
     </div>
   )
 }

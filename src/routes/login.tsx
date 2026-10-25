@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/button'
 import { useAuth } from '@/context/AuthContext'
 import { toast } from 'sonner'
+import { Eye, EyeOff } from 'lucide-react'
 
 export const Route = createFileRoute('/login')({
   component: LoginPage,
@@ -13,9 +14,9 @@ function LoginPage() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Se já estiver logado, redireciona para o perfil
   useEffect(() => {
     if (isAuthenticated) {
       navigate({ to: '/perfil' })
@@ -53,90 +54,132 @@ function LoginPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-16 flex items-center justify-center min-h-[calc(100vh-280px)]">
-      <div className="w-full max-w-md bg-card border border-border/80 rounded-3xl p-8 sm:p-10 shadow-2xl space-y-6">
-        
-        {/* Header da Página de Login (Figma Frame: Desktop / Login) */}
-        <div className="text-center space-y-2">
-          <div className="flex justify-center items-center gap-3 font-sans text-2xl font-black text-foreground">
-            <span className="text-primary border-b-2 border-primary pb-1">Entrar</span>
+    <div className="container mx-auto px-4 py-12 flex items-center justify-center min-h-[calc(100vh-260px)] font-mono">
+      <div className="relative w-full max-w-[460px] bg-[#1E1712] border border-border shadow-2xl overflow-hidden">
+        <div className="p-6 sm:p-8">
+          <button
+            type="button"
+            onClick={() => navigate({ to: '/' })}
+            aria-label="Fechar"
+            className="absolute top-4 right-4 text-primary hover:opacity-80 font-bold text-sm cursor-pointer"
+          >
+            ✕
+          </button>
+
+          {/* Abas Entrar | Criar conta (Fiel a Login.png e MLogin.png) */}
+          <div className="flex justify-center items-center gap-3 mb-5 text-base font-bold">
+            <span className="text-primary">Entrar</span>
             <span className="text-muted-foreground font-light">|</span>
-            <Link to="/cadastro" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/cadastro" className="text-foreground hover:text-primary transition-colors">
               Criar conta
             </Link>
           </div>
-          <p className="font-mono text-xs text-muted-foreground pt-1">
-            Acesse seu perfil de colecionador e gerencie seus NFTs.
-          </p>
-        </div>
 
-        {/* Formulário de Login */}
-        <form onSubmit={handleSubmit} className="space-y-4 font-mono text-xs">
-          <div>
-            <label className="block text-muted-foreground mb-1.5 font-bold">E-mail</label>
+          <p className="text-xs text-foreground/90 mb-4 leading-relaxed">
+            Entre para gerenciar sua carteira, coleção e perfil de criador.
+          </p>
+
+          <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
             <input
               type="email"
+              aria-label="E-mail"
               required
-              placeholder="alex@kurio.art"
+              placeholder="contato@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:border-primary transition-colors"
+              className="w-full bg-background border border-primary/70 rounded-md px-3.5 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
             />
-          </div>
 
-          <div>
-            <div className="flex justify-between items-center mb-1.5">
-              <label className="text-muted-foreground font-bold">Senha</label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                aria-label="Senha"
+                required
+                placeholder="••••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-background border border-border rounded-md pl-3.5 pr-10 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label="Alternar visibilidade da senha"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+
+            <div className="flex justify-end">
               <button
                 type="button"
                 onClick={() => toast.info('Para testes, a senha padrão é password123')}
-                className="text-primary hover:underline text-[11px]"
+                className="text-[11px] text-primary hover:underline cursor-pointer"
               >
                 Esqueceu a senha?
               </button>
             </div>
-            <input
-              type="password"
-              required
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:border-primary transition-colors"
-            />
+
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full h-11 rounded-md font-bold font-mono text-xs bg-primary text-primary-foreground hover:bg-primary/90 mt-2 cursor-pointer"
+            >
+              {isSubmitting ? 'Autenticando...' : 'Entrar'}
+            </Button>
+          </form>
+
+          {/* Divisor Social */}
+          <div className="flex items-center gap-3 my-5">
+            <div className="h-px bg-border flex-1" />
+            <span className="text-[11px] text-muted-foreground">Ou continue com</span>
+            <div className="h-px bg-border flex-1" />
           </div>
 
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full h-12 rounded-xl font-bold font-sans text-sm text-primary-foreground mt-4 shadow-lg shadow-primary/20"
-          >
-            {isSubmitting ? 'Autenticando...' : 'Entrar na Plataforma'}
-          </Button>
-        </form>
-
-        {/* Usuários Rápidos para Teste de Isolamento */}
-        <div className="pt-6 border-t border-border/60">
-          <p className="text-xs font-mono text-muted-foreground text-center mb-3">
-            Atalhos para avaliação e teste de isolamento de cache:
-          </p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2.5 text-xs">
             <button
               type="button"
               onClick={() => handleQuickLogin('alex@kurio.art')}
-              className="py-2.5 px-3 rounded-xl bg-secondary hover:bg-secondary/80 border border-border font-mono text-xs text-foreground transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full h-10 bg-background border border-border hover:border-primary rounded-md flex items-center justify-center gap-2.5 text-foreground transition-colors cursor-pointer"
             >
-              <span>👤</span> Alex Nomad
+              <span className="font-bold text-primary">G</span>
+              <span>Continuar com Google</span>
             </button>
             <button
               type="button"
               onClick={() => handleQuickLogin('sara@kurio.art')}
-              className="py-2.5 px-3 rounded-xl bg-secondary hover:bg-secondary/80 border border-border font-mono text-xs text-foreground transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full h-10 bg-background border border-border hover:border-primary rounded-md flex items-center justify-center gap-2.5 text-foreground transition-colors cursor-pointer"
             >
-              <span>👤</span> Sara Nova
+              <span className="font-bold text-[#3b82f6]">f</span>
+              <span>Continuar com Facebook</span>
             </button>
+          </div>
+
+          {/* Atalhos para Teste de Isolamento */}
+          <div className="mt-5 pt-4 border-t border-border/60">
+            <p className="text-[10px] text-muted-foreground text-center mb-2">
+              Contas rápidas para avaliação:
+            </p>
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <button
+                type="button"
+                onClick={() => handleQuickLogin('alex@kurio.art')}
+                className="py-1.5 px-2.5 rounded bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>👤</span> Alex Nomad
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickLogin('sara@kurio.art')}
+                className="py-1.5 px-2.5 rounded bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>👤</span> Sara Nova
+              </button>
+            </div>
           </div>
         </div>
 
+        <div className="h-2.5 w-full bg-primary" />
       </div>
     </div>
   )

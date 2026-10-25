@@ -12,47 +12,47 @@ export default {
       center: true,
       padding: "2rem",
       screens: {
-        "2xl": "1400px",
+        "2xl": "1320px",
       },
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['"Space Mono"', 'monospace'],
         mono: ['"Space Mono"', 'monospace'],
       },
       colors: {
-        border: "#2E2520",
-        input: "#2E2520",
-        ring: "#D98A53",
-        background: "#0F0C0A",
-        foreground: "#F2F2F2",
+        border: "#342820",
+        input: "#342820",
+        ring: "#C88246",
+        background: "#14100D",
+        foreground: "#F5EFEA",
         primary: {
-          DEFAULT: "#D98A53",
-          foreground: "#0F0C0A",
+          DEFAULT: "#C88246",
+          foreground: "#14100D",
         },
         secondary: {
-          DEFAULT: "#1A1512",
-          foreground: "#F2F2F2",
+          DEFAULT: "#221A14",
+          foreground: "#F5EFEA",
         },
         destructive: {
-          DEFAULT: "#ef4444",
-          foreground: "#F2F2F2",
+          DEFAULT: "#E04F4F",
+          foreground: "#F5EFEA",
         },
         muted: {
-          DEFAULT: "#1A1512",
-          foreground: "#827B75",
+          DEFAULT: "#221A14",
+          foreground: "#A89B8E",
         },
         accent: {
-          DEFAULT: "#D98A53",
-          foreground: "#0F0C0A",
+          DEFAULT: "#C88246",
+          foreground: "#14100D",
         },
         popover: {
-          DEFAULT: "#1A1512",
-          foreground: "#F2F2F2",
+          DEFAULT: "#1E1712",
+          foreground: "#F5EFEA",
         },
         card: {
-          DEFAULT: "#1A1512",
-          foreground: "#F2F2F2",
+          DEFAULT: "#1E1712",
+          foreground: "#F5EFEA",
         },
       },
       borderRadius: {

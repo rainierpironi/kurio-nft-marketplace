@@ -1,19 +1,40 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getMe, updateProfile, updatePassword, addWallet, updateWallet, deleteWallet, getNFTs } from '@/lib/api'
+import { getMe, updateProfile, updatePassword, getNFTs } from '@/lib/api'
 import { Button } from '@/components/button'
 import { Skeleton } from '@/components/skeleton'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
 import { NFTCard } from '@/components/NFTCard'
+import {
+  User,
+  Wallet,
+  Activity,
+  Heart,
+  Tag,
+  Download,
+  HelpCircle,
+  LogOut,
+  Image as ImageIcon,
+  Eye,
+  EyeOff,
+} from 'lucide-react'
 
-type ProfileTab = 'perfil' | 'carteiras' | 'favoritos' | 'seguranca'
+type ProfileTab = 'perfil' | 'carteiras' | 'atividade' | 'favoritos' | 'ofertas' | 'arquivos' | 'suporte'
 
 export const Route = createFileRoute('/perfil')({
   validateSearch: (search: Record<string, unknown>): { tab?: ProfileTab } => {
-    const t = search.tab
-    if (t === 'perfil' || t === 'carteiras' || t === 'favoritos' || t === 'seguranca') {
+    const t = search.tab as ProfileTab | undefined
+    if (
+      t === 'perfil' ||
+      t === 'carteiras' ||
+      t === 'atividade' ||
+      t === 'favoritos' ||
+      t === 'ofertas' ||
+      t === 'arquivos' ||
+      t === 'suporte'
+    ) {
       return { tab: t }
     }
     return {}
@@ -32,22 +53,24 @@ function ProfilePage() {
   useEffect(() => {
     if (tab) {
       setActiveTab(tab)
+    } else {
+      setActiveTab('perfil')
     }
   }, [tab])
 
-  // Estados de edição de perfil
+  // Campos do Formulário (Perfil do Colecionador.png)
   const [name, setName] = useState('')
   const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
+  const [ensName, setEnsName] = useState('')
+  const [walletNickname, setWalletNickname] = useState('')
   const [bio, setBio] = useState('')
 
-  // Estados de senha
+  // Campos de Alterar Senha
   const [oldPassword, setOldPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
-
-  // Estados de nova carteira
-  const [newWalletAddress, setNewWalletAddress] = useState('')
-  const [newWalletNetwork, setNewWalletNetwork] = useState('Ethereum')
-  const [newWalletLabel, setNewWalletLabel] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
+  const [showPass, setShowPass] = useState(false)
 
   const { data: userData, isLoading } = useQuery({
     queryKey: ['profile'],
@@ -55,87 +78,53 @@ function ProfilePage() {
       const data = await getMe()
       setName(data.user.name)
       setUsername(data.user.username)
+      setEmail(data.user.email)
       setBio(data.user.bio)
+      setEnsName(data.user.username)
+      setWalletNickname(data.user.wallets?.[0]?.label || 'Carteira Principal')
       return data.user
     },
     enabled: isAuthenticated,
   })
 
-  // Consulta todos os NFTs para exibir os favoritos
   const { data: nftsData } = useQuery({
     queryKey: ['nfts-all'],
     queryFn: () => getNFTs({ limit: 50 }),
     enabled: activeTab === 'favoritos',
   })
 
-  // Mutações
-  const profileMutation = useMutation({
-    mutationFn: () => updateProfile({ name, username, bio }),
+  const saveAllMutation = useMutation({
+    mutationFn: async () => {
+      const updated = await updateProfile({ name, username, bio })
+      if (oldPassword && newPassword) {
+        if (newPassword !== confirmNewPassword) {
+          throw new Error('A confirmação da nova senha não coincide.')
+        }
+        await updatePassword({ oldPassword, newPassword })
+      }
+      return updated
+    },
     onSuccess: (data) => {
       queryClient.setQueryData(['profile'], data.user)
       toast.success('Perfil atualizado com sucesso!')
-    },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.message || 'Erro ao atualizar perfil')
-    },
-  })
-
-  const passwordMutation = useMutation({
-    mutationFn: () => updatePassword({ oldPassword, newPassword }),
-    onSuccess: () => {
-      toast.success('Senha alterada com sucesso!')
       setOldPassword('')
       setNewPassword('')
+      setConfirmNewPassword('')
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.message || 'Erro ao alterar senha')
-    },
-  })
-
-  const addWalletMutation = useMutation({
-    mutationFn: () =>
-      addWallet({
-        address: newWalletAddress,
-        network: newWalletNetwork,
-        label: newWalletLabel || 'Nova Carteira',
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile'] })
-      toast.success('Carteira adicionada com sucesso!')
-      setNewWalletAddress('')
-      setNewWalletLabel('')
-    },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.message || 'Erro ao adicionar carteira')
-    },
-  })
-
-  const setPrimaryWalletMutation = useMutation({
-    mutationFn: (walletId: string) => updateWallet(walletId, { isPrimary: true }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile'] })
-      toast.success('Carteira principal atualizada!')
-    },
-  })
-
-  const removeWalletMutation = useMutation({
-    mutationFn: (walletId: string) => deleteWallet(walletId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile'] })
-      toast.info('Carteira desconectada.')
+      toast.error(err.response?.data?.message || err.message || 'Erro ao atualizar perfil')
     },
   })
 
   if (!isAuthenticated && !isLoading) {
     return (
-      <div className="container mx-auto px-4 lg:px-8 py-20 text-center max-w-md">
-        <span className="text-4xl mb-4 block">🔒</span>
-        <h1 className="font-sans text-2xl font-bold mb-2">Acesso Restrito</h1>
-        <p className="font-mono text-xs text-muted-foreground mb-6">
+      <div className="container mx-auto px-4 lg:px-8 py-20 text-center max-w-md font-mono">
+        <h1 className="text-xl font-bold mb-2 text-foreground">Acesso Restrito</h1>
+        <p className="text-xs text-muted-foreground mb-6">
           Você precisa estar conectado a uma conta para visualizar seu perfil e gerenciar carteiras.
         </p>
-        <Button onClick={() => navigate({ to: '/' })} className="font-mono text-xs rounded-full">
-          Voltar à Página Inicial
+        <Button onClick={() => navigate({ to: '/login' })} className="font-mono text-xs rounded-md px-6">
+          Entrar na Conta
         </Button>
       </div>
     )
@@ -143,351 +132,306 @@ function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 lg:px-8 py-12 max-w-4xl space-y-6">
-        <Skeleton className="h-32 w-full rounded-3xl" />
-        <Skeleton className="h-64 w-full rounded-2xl" />
+      <div className="container mx-auto max-w-7xl px-4 lg:px-8 py-12 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <Skeleton className="lg:col-span-3 h-96 rounded-xl" />
+        <Skeleton className="lg:col-span-9 h-96 rounded-xl" />
       </div>
     )
   }
 
   const user = userData
-
-  // Filtra os NFTs favoritos do usuário
   const userFavorites = nftsData?.items.filter((item) => user?.favorites?.includes(item.id)) || []
 
+  const sidebarItems: { id: ProfileTab; label: string; icon: React.ReactNode; route?: string }[] = [
+    { id: 'perfil', label: 'Dados do perfil', icon: <User className="w-4 h-4" /> },
+    { id: 'carteiras', label: 'Carteiras', icon: <Wallet className="w-4 h-4" />, route: '/carteiras' },
+    { id: 'atividade', label: 'Atividade', icon: <Activity className="w-4 h-4" /> },
+    { id: 'favoritos', label: 'Lista de interesse', icon: <Heart className="w-4 h-4" /> },
+    { id: 'ofertas', label: 'Ofertas', icon: <Tag className="w-4 h-4" /> },
+    { id: 'arquivos', label: 'Arquivos baixados', icon: <Download className="w-4 h-4" /> },
+    { id: 'suporte', label: 'Suporte', icon: <HelpCircle className="w-4 h-4" /> },
+  ]
+
   return (
-    <div className="container mx-auto px-4 lg:px-8 py-8 lg:py-12 max-w-5xl">
-      {/* Banner Superior do Perfil (Frames Figma: Perfil do Colecionador / Carteiras) */}
-      <div className="bg-card border border-border/70 rounded-3xl p-6 sm:p-8 mb-8 shadow-xl flex flex-col sm:flex-row items-center sm:items-start gap-6">
-        <div className="relative">
-          <img
-            src={user?.avatar}
-            alt={user?.name}
-            className="w-24 h-24 rounded-full object-cover border-2 border-primary shadow-lg"
-          />
-          <span className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">
-            ✓
-          </span>
-        </div>
+    <div className="container mx-auto max-w-7xl px-4 lg:px-8 py-8 lg:py-12 font-mono">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Sidebar Esquerda: Meu perfil (Fiel a Perfil do Colecionador.png) */}
+        <aside className="lg:col-span-3 bg-[#1E1712] border border-border py-5">
+          <h2 className="px-5 text-sm font-bold text-foreground mb-4">Meu perfil</h2>
 
-        <div className="flex-1 text-center sm:text-left space-y-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h1 className="font-sans text-2xl sm:text-3xl font-black text-foreground">{user?.name}</h1>
-              <p className="font-mono text-xs text-primary">@{user?.username}</p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={logout}
-              className="font-mono text-xs rounded-full border-destructive/40 text-destructive hover:bg-destructive/10"
-            >
-              Encerrar Sessão
-            </Button>
-          </div>
-          <p className="font-mono text-xs text-muted-foreground max-w-xl">{user?.bio}</p>
-        </div>
-      </div>
-
-      {/* Tabs de Navegação */}
-      <div className="flex gap-4 border-b border-border mb-8 overflow-x-auto pb-2 font-mono text-xs">
-        <button
-          onClick={() => {
-            setActiveTab('perfil')
-            navigate({ to: '/perfil', search: {} })
-          }}
-          className={`pb-2 whitespace-nowrap cursor-pointer transition-colors ${
-            activeTab === 'perfil'
-              ? 'text-primary border-b-2 border-primary font-bold'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Editar Perfil
-        </button>
-        <button
-          onClick={() => {
-            setActiveTab('carteiras')
-            navigate({ to: '/perfil', search: { tab: 'carteiras' } })
-          }}
-          className={`pb-2 whitespace-nowrap cursor-pointer transition-colors ${
-            activeTab === 'carteiras'
-              ? 'text-primary border-b-2 border-primary font-bold'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Carteiras Conectadas ({user?.wallets.length || 0})
-        </button>
-        <button
-          onClick={() => {
-            setActiveTab('favoritos')
-            navigate({ to: '/perfil', search: { tab: 'favoritos' } })
-          }}
-          className={`pb-2 whitespace-nowrap cursor-pointer transition-colors ${
-            activeTab === 'favoritos'
-              ? 'text-primary border-b-2 border-primary font-bold'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Favoritos ({user?.favorites.length || 0})
-        </button>
-        <button
-          onClick={() => {
-            setActiveTab('seguranca')
-            navigate({ to: '/perfil', search: { tab: 'seguranca' } })
-          }}
-          className={`pb-2 whitespace-nowrap cursor-pointer transition-colors ${
-            activeTab === 'seguranca'
-              ? 'text-primary border-b-2 border-primary font-bold'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Segurança & Senha
-        </button>
-      </div>
-
-      {/* Tab: Editar Perfil */}
-      {activeTab === 'perfil' && (
-        <div className="bg-card border border-border/70 rounded-3xl p-6 sm:p-8 max-w-2xl space-y-6">
-          <h2 className="font-sans text-xl font-bold">Informações Pessoais</h2>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              profileMutation.mutate()
-            }}
-            className="space-y-4 font-mono text-xs"
-          >
-            <div>
-              <label className="block text-muted-foreground mb-1">Nome de Exibição</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-primary"
-              />
-            </div>
-
-            <div>
-              <label className="block text-muted-foreground mb-1">Nome de Usuário</label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-primary"
-              />
-            </div>
-
-            <div>
-              <label className="block text-muted-foreground mb-1">Biografia do Colecionador</label>
-              <textarea
-                rows={3}
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-primary resize-none"
-              />
-            </div>
-
-            <Button
-              type="submit"
-              disabled={profileMutation.isPending}
-              className="rounded-full px-8 font-sans font-bold text-xs h-11 text-primary-foreground"
-            >
-              {profileMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
-            </Button>
-          </form>
-        </div>
-      )}
-
-      {/* Tab: Carteiras Conectadas (Figma: Desktop & Mobile Carteiras) */}
-      {activeTab === 'carteiras' && (
-        <div className="space-y-8 max-w-3xl">
-          <div className="space-y-4">
-            <h2 className="font-sans text-xl font-bold">Suas Carteiras Cadastradas</h2>
-            <div className="grid grid-cols-1 gap-4">
-              {user?.wallets.map((wallet) => (
-                <div
-                  key={wallet.id}
-                  className={`p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
-                    wallet.isPrimary
-                      ? 'bg-primary/5 border-primary/50'
-                      : 'bg-card border-border/70 hover:border-border'
+          <nav className="flex flex-col text-xs">
+            {sidebarItems.map((item) => {
+              const isCurrent = activeTab === item.id
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    if (item.route) {
+                      navigate({ to: item.route as any })
+                    } else {
+                      setActiveTab(item.id)
+                      navigate({ to: '/perfil', search: item.id === 'perfil' ? {} : { tab: item.id } })
+                    }
+                  }}
+                  className={`flex items-center gap-3 px-5 py-3 text-left transition-colors cursor-pointer border-l-4 ${
+                    isCurrent
+                      ? 'border-primary text-primary font-bold bg-background/40'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-sans font-bold text-sm text-foreground">{wallet.label}</span>
-                      {wallet.isPrimary && (
-                        <span className="font-mono text-[10px] bg-primary/20 text-primary font-bold px-2 py-0.5 rounded-full">
-                          Principal
-                        </span>
-                      )}
-                      <span className="font-mono text-[10px] bg-secondary text-muted-foreground px-2 py-0.5 rounded-full">
-                        {wallet.network}
-                      </span>
-                    </div>
-                    <p className="font-mono text-xs text-muted-foreground truncate max-w-md">{wallet.address}</p>
-                  </div>
+                  {item.icon}
+                  <span>{item.label}</span>
+                </button>
+              )
+            })}
 
-                  <div className="flex items-center gap-3">
-                    {!wallet.isPrimary && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPrimaryWalletMutation.mutate(wallet.id)}
-                        className="font-mono text-xs rounded-xl"
-                      >
-                        Tornar Principal
-                      </Button>
-                    )}
-                    <button
-                      onClick={() => removeWalletMutation.mutate(wallet.id)}
-                      className="text-xs font-mono text-destructive hover:underline p-2 cursor-pointer"
-                    >
-                      Desconectar
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+            <div className="my-3 border-t border-border mx-5" />
 
-          {/* Adicionar Nova Carteira */}
-          <div className="bg-card border border-border/70 rounded-3xl p-6 sm:p-8 space-y-4">
-            <h3 className="font-sans font-bold text-base">Conectar Nova Carteira</h3>
+            <button
+              type="button"
+              onClick={logout}
+              className="flex items-center gap-3 px-5 py-2.5 text-left text-primary font-bold hover:opacity-80 transition-opacity cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sair</span>
+            </button>
+          </nav>
+        </aside>
+
+        {/* Conteúdo Principal à Direita */}
+        <div className="lg:col-span-9">
+          {activeTab === 'perfil' && (
             <form
               onSubmit={(e) => {
                 e.preventDefault()
-                if (!newWalletAddress.trim()) {
-                  toast.error('Informe o endereço da carteira')
-                  return
-                }
-                addWalletMutation.mutate()
+                saveAllMutation.mutate()
               }}
-              className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono text-xs"
+              className="space-y-8 text-xs"
             >
-              <div className="sm:col-span-2">
-                <label className="block text-muted-foreground mb-1">Endereço (0x...)</label>
-                <input
-                  type="text"
-                  placeholder="0x71C84982a17D9eC9b840132bFa3d..."
-                  value={newWalletAddress}
-                  onChange={(e) => setNewWalletAddress(e.target.value)}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-primary"
-                />
+              {/* Seção: Perfil do colecionador */}
+              <div className="space-y-5">
+                <h1 className="text-sm font-bold text-foreground">Perfil do colecionador</h1>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-foreground block">
+                      Nome de exibição <span className="text-primary">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      aria-label="Nome de Exibição"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full bg-background border border-border rounded-md px-3.5 py-2.5 text-foreground focus:outline-none focus:border-primary"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-foreground block">
+                      Nome de usuário <span className="text-primary">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      aria-label="Nome de Usuário"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="w-full bg-background border border-border rounded-md px-3.5 py-2.5 text-foreground focus:outline-none focus:border-primary"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-foreground block">
+                      E-mail <span className="text-primary">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-background border border-border rounded-md px-3.5 py-2.5 text-foreground focus:outline-none focus:border-primary"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-foreground block">
+                      Nome ENS <span className="text-primary">*</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <span className="bg-background border border-border rounded-md px-3 py-2.5 text-foreground flex items-center gap-1">
+                        .eth <span className="text-[10px]">⌄</span>
+                      </span>
+                      <input
+                        type="text"
+                        value={ensName}
+                        onChange={(e) => setEnsName(e.target.value)}
+                        className="flex-1 min-w-0 bg-background border border-border rounded-md px-3.5 py-2.5 text-foreground focus:outline-none focus:border-primary"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-foreground block">
+                      Apelido da carteira <span className="text-primary">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={walletNickname}
+                      onChange={(e) => setWalletNickname(e.target.value)}
+                      className="w-full bg-background border border-border rounded-md px-3.5 py-2.5 text-foreground focus:outline-none focus:border-primary"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-foreground block">Avatar</label>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[#1E1712] border border-border flex items-center justify-center overflow-hidden text-primary">
+                        {user?.avatar ? (
+                          <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <ImageIcon className="w-4 h-4" />
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toast.success('Avatar atualizado!')}
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-xs px-4 py-2 rounded-md cursor-pointer"
+                      >
+                        Alterar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toast.info('Avatar padrão restaurado.')}
+                        className="text-foreground hover:text-destructive text-xs px-2 py-2 cursor-pointer"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-muted-foreground mb-1">Rótulo / Nome</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Minha MetaMask Ledger"
-                  value={newWalletLabel}
-                  onChange={(e) => setNewWalletLabel(e.target.value)}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-primary"
-                />
-              </div>
+              {/* Seção: Alterar senha */}
+              <div className="space-y-4 pt-2 max-w-md">
+                <h2 className="text-sm font-bold text-foreground">Alterar senha</h2>
 
-              <div>
-                <label className="block text-muted-foreground mb-1">Rede</label>
-                <select
-                  value={newWalletNetwork}
-                  onChange={(e) => setNewWalletNetwork(e.target.value)}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-primary"
-                >
-                  <option value="Ethereum">Ethereum</option>
-                  <option value="Polygon">Polygon</option>
-                  <option value="Solana">Solana</option>
-                </select>
-              </div>
+                <div className="space-y-1.5">
+                  <label className="text-foreground block">Senha atual</label>
+                  <div className="relative">
+                    <input
+                      type={showPass ? 'text' : 'password'}
+                      value={oldPassword}
+                      onChange={(e) => setOldPassword(e.target.value)}
+                      className="w-full bg-background border border-border rounded-md pl-3.5 pr-10 py-2.5 text-foreground focus:outline-none focus:border-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPass((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
 
-              <div className="sm:col-span-2 pt-2">
-                <Button
-                  type="submit"
-                  disabled={addWalletMutation.isPending}
-                  className="rounded-full px-8 font-sans font-bold text-xs h-11 text-primary-foreground"
-                >
-                  {addWalletMutation.isPending ? 'Conectando...' : '+ Conectar Carteira'}
-                </Button>
+                <div className="space-y-1.5">
+                  <label className="text-foreground block">Nova senha</label>
+                  <div className="relative">
+                    <input
+                      type={showPass ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full bg-background border border-border rounded-md pl-3.5 pr-10 py-2.5 text-foreground focus:outline-none focus:border-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPass((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-foreground block">Confirmar nova senha</label>
+                  <div className="relative">
+                    <input
+                      type={showPass ? 'text' : 'password'}
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      className="w-full bg-background border border-border rounded-md pl-3.5 pr-10 py-2.5 text-foreground focus:outline-none focus:border-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPass((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <Button
+                    type="submit"
+                    disabled={saveAllMutation.isPending}
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-7 h-10 font-mono font-bold text-xs cursor-pointer"
+                  >
+                    {saveAllMutation.isPending ? 'Salvando...' : 'Salvar'}
+                  </Button>
+                </div>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Tab: Favoritos */}
-      {activeTab === 'favoritos' && (
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="font-sans text-xl font-bold">Seus Colecionáveis Salvos</h2>
-            <span className="font-mono text-xs text-muted-foreground">
-              {userFavorites.length} item(ns) na sua lista de desejos
-            </span>
-          </div>
+          {/* Tab: Lista de interesse (Favoritos) */}
+          {activeTab === 'favoritos' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center border-b border-border pb-3">
+                <h2 className="text-sm font-bold text-foreground">Lista de interesse (Favoritos)</h2>
+                <span className="text-xs text-muted-foreground">
+                  {userFavorites.length} item(ns) salvos
+                </span>
+              </div>
 
-          {userFavorites.length === 0 ? (
-            <div className="p-12 text-center bg-card rounded-3xl border border-border">
-              <span className="text-3xl mb-3 block">🤍</span>
-              <p className="font-mono text-xs text-muted-foreground mb-4">Você ainda não favoritou nenhum NFT.</p>
-              <Link to="/" className="text-primary font-mono text-xs hover:underline">
-                Explorar catálogo para favoritar
-              </Link>
+              {userFavorites.length === 0 ? (
+                <div className="p-12 text-center bg-[#1E1712] rounded-xl border border-border space-y-3">
+                  <p className="text-xs text-muted-foreground">Você ainda não favoritou nenhum NFT.</p>
+                  <Link to="/" className="text-primary text-xs font-bold hover:underline inline-block">
+                    Explorar catálogo para favoritar
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
+                  {userFavorites.map((nft) => (
+                    <NFTCard key={nft.id} nft={nft} />
+                  ))}
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {userFavorites.map((nft) => (
-                <NFTCard key={nft.id} nft={nft} />
-              ))}
+          )}
+
+          {/* Outras abas informativas */}
+          {(activeTab === 'atividade' ||
+            activeTab === 'ofertas' ||
+            activeTab === 'arquivos' ||
+            activeTab === 'suporte') && (
+            <div className="bg-[#1E1712] border border-border rounded-xl p-8 text-center space-y-3">
+              <h2 className="text-sm font-bold text-foreground uppercase">{activeTab}</h2>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                Histórico sincronizado com sua carteira Ethereum principal ({user?.wallets?.[0]?.address}).
+              </p>
+              <Button
+                onClick={() => setActiveTab('perfil')}
+                variant="outline"
+                className="text-xs rounded-md font-mono"
+              >
+                Voltar aos Dados do Perfil
+              </Button>
             </div>
           )}
         </div>
-      )}
-
-      {/* Tab: Segurança & Troca de Senha */}
-      {activeTab === 'seguranca' && (
-        <div className="bg-card border border-border/70 rounded-3xl p-6 sm:p-8 max-w-xl space-y-6">
-          <h2 className="font-sans text-xl font-bold">Alterar Senha</h2>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              if (!oldPassword || !newPassword) {
-                toast.error('Preencha senha atual e nova senha')
-                return
-              }
-              passwordMutation.mutate()
-            }}
-            className="space-y-4 font-mono text-xs"
-          >
-            <div>
-              <label className="block text-muted-foreground mb-1">Senha Atual</label>
-              <input
-                type="password"
-                placeholder="••••••••"
-                value={oldPassword}
-                onChange={(e) => setOldPassword(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-primary"
-              />
-            </div>
-
-            <div>
-              <label className="block text-muted-foreground mb-1">Nova Senha (mínimo 6 caracteres)</label>
-              <input
-                type="password"
-                placeholder="••••••••"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-primary"
-              />
-            </div>
-
-            <Button
-              type="submit"
-              disabled={passwordMutation.isPending}
-              className="rounded-full px-8 font-sans font-bold text-xs h-11 text-primary-foreground"
-            >
-              {passwordMutation.isPending ? 'Atualizando...' : 'Atualizar Senha'}
-            </Button>
-          </form>
-        </div>
-      )}
+      </div>
     </div>
   )
 }

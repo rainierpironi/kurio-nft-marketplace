@@ -1,22 +1,22 @@
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/card'
-import { Button } from '@/components/button'
 import type { NFT } from '@/lib/api'
 import { addToCart, addFavorite, removeFavorite, getFavorites } from '@/lib/api'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useAuth } from '@/context/AuthContext'
+import { ShoppingCart, Heart, Search } from 'lucide-react'
 
 interface NFTCardProps {
   nft: NFT
   onAuthRequired?: () => void
+  compact?: boolean
 }
 
-export function NFTCard({ nft, onAuthRequired }: NFTCardProps) {
+export function NFTCard({ nft, onAuthRequired, compact = false }: NFTCardProps) {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
 
-  // Consulta de favoritos do usuário logado
   const { data: favData } = useQuery({
     queryKey: ['favorites'],
     queryFn: getFavorites,
@@ -25,7 +25,7 @@ export function NFTCard({ nft, onAuthRequired }: NFTCardProps) {
 
   const isFavorited = favData?.favorites?.includes(nft.id) ?? false
 
-  // Mutação de Favorito com Atualização Otimista e Rollback em caso de falha (Exigência Eliminatória do Desafio)
+  // Mutação de Favorito com Atualização Otimista e Rollback imediato em caso de erro
   const favoriteMutation = useMutation({
     mutationFn: async () => {
       if (isFavorited) {
@@ -49,7 +49,6 @@ export function NFTCard({ nft, onAuthRequired }: NFTCardProps) {
       return { previousFavorites }
     },
     onError: (_err, _variables, context) => {
-      // ROLLBACK IMEDIATO DO ESTADO OTIMISTA
       if (context?.previousFavorites) {
         queryClient.setQueryData(['favorites'], context.previousFavorites)
       }
@@ -73,7 +72,6 @@ export function NFTCard({ nft, onAuthRequired }: NFTCardProps) {
     favoriteMutation.mutate()
   }
 
-  // Mutação para adicionar ao carrinho
   const cartMutation = useMutation({
     mutationFn: () => addToCart(nft.id, 1),
     onSuccess: () => {
@@ -85,94 +83,105 @@ export function NFTCard({ nft, onAuthRequired }: NFTCardProps) {
     },
   })
 
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (nft.available === 0 || cartMutation.isPending) return
+    cartMutation.mutate()
+  }
+
   return (
-    <Card className="flex flex-col overflow-hidden bg-card border border-border/70 rounded-2xl hover:border-primary/50 transition-all duration-300 group">
-      {/* Imagem Clicável */}
-      <Link
-        to="/nft/$id"
-        params={{ id: nft.id }}
-        className="relative aspect-square w-full bg-secondary overflow-hidden group cursor-pointer block"
-      >
-        <img
-          src={nft.image || `https://placehold.co/400x400/e2e8f0/1e293b.png?text=${encodeURIComponent(nft.title)}`}
-          alt={nft.title}
-          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
+    <div className="group flex flex-col bg-[#1E1712] border border-transparent hover:border-primary/40 rounded-2xl p-3 sm:p-4 transition-all duration-200">
+      {/* Container da Arte do NFT */}
+      <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-[#14100D] mb-3">
+        <Link to="/nft/$id" params={{ id: nft.id }} className="block w-full h-full">
+          <img
+            src={nft.image || '/nfts/ape-emerald.png'}
+            alt={nft.title}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        </Link>
 
-        {/* Badges superiores */}
-        <div className="absolute top-3 left-3 flex items-center gap-1.5">
-          <span className="bg-background/80 backdrop-blur-md font-mono text-[11px] px-2.5 py-1 rounded-full text-foreground border border-border/50">
-            {nft.network}
+        {/* Selo RARO (Fiel a Início.png no Neon Vessel #552) */}
+        {nft.badge && (
+          <span className="absolute top-3 left-3 bg-primary text-primary-foreground font-mono text-[10px] font-bold px-2.5 py-1 rounded uppercase tracking-wider shadow">
+            {nft.badge}
           </span>
-          <span className="bg-primary/20 backdrop-blur-md text-primary font-mono text-[11px] px-2.5 py-1 rounded-full font-bold">
-            {nft.editionType}
-          </span>
-        </div>
+        )}
 
-        {/* Botão de Favorito (Otimista) */}
+        {/* Botão de Favorito Superior Direito (Fiel a MInício.png + Suporte Otimista) */}
         <button
           type="button"
           onClick={handleFavoriteClick}
           aria-label={isFavorited ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-          className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer backdrop-blur-md ${
+          className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
             isFavorited
-              ? 'bg-red-500/20 text-red-500 border border-red-500/40'
-              : 'bg-background/60 text-muted-foreground hover:text-foreground border border-border/50'
+              ? 'bg-primary text-primary-foreground shadow-md'
+              : 'bg-[#14100D]/80 text-primary hover:bg-primary hover:text-primary-foreground'
           }`}
         >
-          <span className="text-sm">{isFavorited ? '❤️' : '🤍'}</span>
+          <Heart className={`w-3.5 h-3.5 ${isFavorited ? 'fill-current' : ''}`} />
         </button>
-      </Link>
 
-      <CardHeader className="p-4 pb-2">
-        <div className="flex items-center justify-between text-xs font-mono text-muted-foreground mb-1">
-          <span>{nft.collection}</span>
-          <span>★ {nft.rating.toFixed(1)}</span>
-        </div>
+        {/* Barra de Ações Rápidas no Hover (Fiel a Login.png: [🛒] [♡] [🔍]) */}
+        {!compact && (
+          <div className="absolute bottom-2.5 inset-x-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              disabled={nft.available === 0 || cartMutation.isPending}
+              title="Adicionar ao carrinho"
+              className="w-8 h-8 rounded-md bg-[#1E1712]/95 border border-border hover:border-primary text-primary flex items-center justify-center shadow-lg cursor-pointer disabled:opacity-40"
+            >
+              <ShoppingCart className="w-3.5 h-3.5" />
+              <span className="sr-only">{nft.available === 0 ? 'Esgotado' : 'Comprar'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleFavoriteClick}
+              title="Favoritar NFT"
+              className="w-8 h-8 rounded-md bg-[#1E1712]/95 border border-border hover:border-primary text-foreground hover:text-primary flex items-center justify-center shadow-lg cursor-pointer"
+            >
+              <Heart className={`w-3.5 h-3.5 ${isFavorited ? 'fill-primary text-primary' : ''}`} />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate({ to: '/nft/$id', params: { id: nft.id } })}
+              title="Ver detalhes do NFT"
+              className="w-8 h-8 rounded-md bg-[#1E1712]/95 border border-border hover:border-primary text-foreground hover:text-primary flex items-center justify-center shadow-lg cursor-pointer"
+            >
+              <Search className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+      </div>
 
-        {/* Título Clicável */}
+      {/* Título e Preço */}
+      <div className="flex flex-col gap-1.5">
         <Link to="/nft/$id" params={{ id: nft.id }} className="block">
-          <h3 className="text-[16px] font-sans font-bold tracking-tight text-card-foreground hover:text-primary transition-colors cursor-pointer truncate">
+          <h3 className="font-mono text-xs sm:text-[13px] font-normal text-foreground hover:text-primary transition-colors truncate">
             {nft.title}
           </h3>
         </Link>
-      </CardHeader>
 
-      <CardContent className="flex-1 px-4 py-0">
-        <div className="flex items-center justify-between mt-1">
-          <div className="flex flex-col">
-            <span className="font-mono text-xs text-muted-foreground">Preço</span>
-            <span className="font-mono text-base font-bold text-primary">{nft.price} ETH</span>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-mono text-xs sm:text-sm font-bold text-primary">
+              {nft.price} ETH
+            </span>
+            {nft.oldPrice && (
+              <span className="font-mono text-[11px] text-muted-foreground line-through">
+                {nft.oldPrice} ETH
+              </span>
+            )}
           </div>
-
-          <div className="text-right">
-            <span className="font-mono text-xs text-muted-foreground">Disponível</span>
-            <p className="font-mono text-xs font-medium text-foreground">
-              {nft.available > 0 ? `${nft.available} em estoque` : <span className="text-destructive font-bold">Esgotado</span>}
-            </p>
-          </div>
+          {nft.available === 0 && (
+            <span className="font-mono text-[10px] font-bold text-destructive uppercase">
+              Esgotado
+            </span>
+          )}
         </div>
-      </CardContent>
-
-      <CardFooter className="p-4 pt-4 flex justify-between items-center border-t border-border/60 mt-3">
-        <Link
-          to="/nft/$id"
-          params={{ id: nft.id }}
-          className="text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Ver detalhes →
-        </Link>
-
-        <Button
-          variant="default"
-          size="sm"
-          className="font-mono text-xs font-bold rounded-full px-5 text-primary-foreground"
-          disabled={nft.available === 0 || cartMutation.isPending}
-          onClick={() => cartMutation.mutate()}
-        >
-          {cartMutation.isPending ? 'Adicionando...' : nft.available === 0 ? 'Esgotado' : 'Comprar'}
-        </Button>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   )
 }

@@ -1,12 +1,13 @@
 import { test, expect } from '@playwright/test'
 
 test.describe('Detalhes do NFT e Tratamento 404', () => {
-  test('deve acessar diretamente a página de detalhes de um NFT existente', async ({ page }) => {
+  test('deve acessar diretamente a página de detalhes de um NFT existente fiel ao Figma', async ({ page }) => {
     await page.goto('/nft/1')
-    await expect(page.locator('h1:has-text("Cosmic Perspective")')).toBeVisible()
-    await expect(page.getByText('0.05 ETH', { exact: true }).first()).toBeVisible()
-    await expect(page.locator('text=Elena Rostova')).toBeVisible()
-    await expect(page.locator('text=Colecionáveis Relacionados')).toBeVisible()
+    await expect(page.locator('h1:has-text("Emerald Ape #042")')).toBeVisible()
+    await expect(page.getByText('1.19 ETH', { exact: true }).first()).toBeVisible()
+    await expect(page.locator('text=19 avaliações de colecionadores')).toBeVisible()
+    await expect(page.locator('text=ID do token: #0042')).toBeVisible()
+    await expect(page.locator('text=Mais desta coleção')).toBeVisible()
   })
 
   test('deve exibir tela 404 e botão de retorno para NFT inexistente', async ({ page }) => {

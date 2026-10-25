@@ -1,256 +1,246 @@
 import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Button } from '@/components/button'
+import { MapPin, Mail, Phone } from 'lucide-react'
 
 export function Footer() {
   const [email, setEmail] = useState('')
-  const [isSubscribed, setIsSubscribed] = useState(false)
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault()
     if (!email || !email.includes('@')) {
-      toast.error('Informe um e-mail válido para assinar.')
+      toast.error('Informe um e-mail válido.')
       return
     }
-    setIsSubscribed(true)
-    toast.success('Inscrição confirmada! Você receberá os próximos drops e novidades.')
+    toast.success('E-mail cadastrado! Você receberá os próximos lançamentos.')
     setEmail('')
   }
 
   return (
-    <footer className="w-full bg-[#0D0A08] border-t border-border/80 text-foreground pt-16 pb-24 md:pb-12 mt-auto z-10 relative">
-      <div className="container mx-auto px-4 lg:px-8 max-w-7xl flex flex-col gap-16">
-        
-        {/* Frame 122: Três Medalhões de Destaque + Newsletter (Figma Specification) */}
-        <div className="bg-[#140F0C] border border-border/60 rounded-3xl p-8 lg:p-12 shadow-2xl flex flex-col lg:flex-row items-center justify-between gap-10">
-          {/* Três Medalhões de Recursos */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 flex-1">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-xl shrink-0">
-                💎
+    <footer className="w-full bg-background text-foreground pt-12 pb-24 md:pb-10 mt-auto">
+      <div className="container mx-auto max-w-7xl px-4 lg:px-8">
+        <div className="bg-[#1E1712] border border-border overflow-hidden">
+          {/* Bloco Superior: 3 Medalhões (W, C, D) + Newsletter */}
+          <div className="p-6 lg:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {/* Medalhão W */}
+              <div className="space-y-3 pr-2 border-b sm:border-b-0 sm:border-r border-border/60 pb-4 sm:pb-0">
+                <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center">
+                  <div className="w-11 h-11 rounded-full bg-primary text-primary-foreground font-mono font-bold text-lg flex items-center justify-center">
+                    W
+                  </div>
+                </div>
+                <h4 className="font-mono font-bold text-xs text-foreground">Segurança da carteira</h4>
+                <p className="font-mono text-[11px] text-muted-foreground leading-relaxed">
+                  Proteja sua carteira e colecione arte digital verificada com confiança.
+                </p>
               </div>
-              <div className="space-y-1">
-                <h4 className="font-sans font-bold text-sm text-foreground">Arte Autêntica & Rara</h4>
-                <p className="font-mono text-xs text-muted-foreground leading-relaxed">
-                  Colecionáveis selecionados por curadoria com proveniência verificada na rede.
+
+              {/* Medalhão C */}
+              <div className="space-y-3 pr-2 border-b sm:border-b-0 sm:border-r border-border/60 pb-4 sm:pb-0">
+                <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center">
+                  <div className="w-11 h-11 rounded-full bg-primary text-primary-foreground font-mono font-bold text-lg flex items-center justify-center">
+                    C
+                  </div>
+                </div>
+                <h4 className="font-mono font-bold text-xs text-foreground">Criadores em destaque</h4>
+                <p className="font-mono text-[11px] text-muted-foreground leading-relaxed">
+                  Conheça artistas, estúdios e comunidades que moldam a cultura digital na rede.
+                </p>
+              </div>
+
+              {/* Medalhão D */}
+              <div className="space-y-3">
+                <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center">
+                  <div className="w-11 h-11 rounded-full bg-primary text-primary-foreground font-mono font-bold text-lg flex items-center justify-center">
+                    D
+                  </div>
+                </div>
+                <h4 className="font-mono font-bold text-xs text-foreground">Alertas de lançamentos</h4>
+                <p className="font-mono text-[11px] text-muted-foreground leading-relaxed">
+                  Receba calendários de cunhagem, novidades de listas de acesso e análises do mercado.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-xl shrink-0">
-                ⚡
-              </div>
-              <div className="space-y-1">
-                <h4 className="font-sans font-bold text-sm text-foreground">Liquidação Instantânea</h4>
-                <p className="font-mono text-xs text-muted-foreground leading-relaxed">
-                  Transferências peer-to-peer sem custódia intermediária direto para sua carteira.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-xl shrink-0">
-                🌱
-              </div>
-              <div className="space-y-1">
-                <h4 className="font-sans font-bold text-sm text-foreground">Apoio aos Criadores</h4>
-                <p className="font-mono text-xs text-muted-foreground leading-relaxed">
-                  Royalties perpétuos garantidos em contratos inteligentes para apoiar artistas.
-                </p>
-              </div>
+            {/* Coluna Newsletter */}
+            <div className="lg:col-span-4 space-y-3">
+              <h4 className="font-mono font-bold text-xs text-foreground">
+                Antecipe-se ao próximo lançamento
+              </h4>
+              <form onSubmit={handleSubscribe} className="flex w-full">
+                <input
+                  type="email"
+                  required
+                  placeholder="digite seu e-mail..."
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="flex-1 min-w-0 bg-background border border-border rounded-l-md px-3 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+                />
+                <button
+                  type="submit"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs font-bold px-4 py-2 rounded-r-md transition-colors cursor-pointer shrink-0"
+                >
+                  Enviar
+                </button>
+              </form>
+              <p className="font-mono text-[11px] text-muted-foreground leading-relaxed">
+                Receba lançamentos selecionados, histórias de criadores e novidades do mercado.
+              </p>
             </div>
           </div>
 
-          {/* Newsletter Signup */}
-          <div className="w-full lg:w-96 shrink-0 bg-background/60 border border-border/60 p-6 rounded-2xl space-y-3">
-            <span className="font-mono text-[11px] text-primary uppercase font-bold tracking-widest block">
-              Newsletter Kurio
-            </span>
-            <h4 className="font-sans font-bold text-base text-foreground">Drops e Lançamentos</h4>
-            <p className="font-mono text-xs text-muted-foreground">
-              Receba notificações de novas coleções antes de chegarem ao mercado aberto.
-            </p>
-            <form onSubmit={handleSubscribe} className="flex gap-2 pt-1">
-              <input
-                type="email"
-                required
-                placeholder="seuemail@exemplo.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="flex-1 bg-secondary border border-border rounded-xl px-3.5 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
-              />
-              <Button type="submit" size="sm" className="font-mono text-xs font-bold rounded-xl px-4 text-primary-foreground">
-                {isSubscribed ? 'Inscrito!' : 'Assinar'}
-              </Button>
-            </form>
-          </div>
-        </div>
-
-        {/* Frame 121: Faixa da Marca + 4 Colunas de Links + Redes e Carteiras */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 lg:gap-8 pt-4">
-          
-          {/* Coluna da Marca */}
-          <div className="lg:col-span-2 space-y-4">
-            <Link to="/" className="font-mono text-2xl font-black tracking-widest text-primary flex items-center gap-2">
-              <span className="w-3.5 h-3.5 rounded-full bg-primary inline-block"></span>
+          {/* Faixa Central: KURIO | Localização | E-mail | Telefone */}
+          <div className="bg-[#2B1F16] border-y border-border px-6 lg:px-10 py-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-center font-mono text-xs">
+            <Link to="/" className="font-bold text-base tracking-[0.2em] text-foreground">
               KURIO
             </Link>
-            <p className="font-mono text-xs text-muted-foreground leading-relaxed max-w-sm">
-              Plataforma descentralizada de negociação de arte digital e colecionáveis raros. 
-              Conectando entusiastas, criadores e investidores Web3 com transparência na blockchain.
-            </p>
-            <div className="pt-2 font-mono text-xs text-muted-foreground space-y-1">
-              <p>Contato: <span className="text-foreground font-medium">contato@kurio.art</span></p>
-              <p>Status: <span className="text-primary font-bold">● Ethereum Mainnet Operacional</span></p>
+            <div className="flex items-center gap-2.5 text-muted-foreground">
+              <MapPin className="w-4 h-4 text-primary shrink-0" />
+              <span className="text-[11px] text-foreground/90">
+                Feito para colecionadores, criadores e cultura
+              </span>
+            </div>
+            <div className="flex items-center gap-2.5 text-muted-foreground">
+              <Mail className="w-4 h-4 text-primary shrink-0" />
+              <span className="text-[11px] text-foreground/90">contato@email.com</span>
+            </div>
+            <div className="flex items-center gap-2.5 text-muted-foreground">
+              <Phone className="w-4 h-4 text-primary shrink-0" />
+              <span className="text-[11px] text-foreground/90">+55 11 4002 8922</span>
             </div>
           </div>
 
-          {/* Coluna 1: Mercado */}
-          <div className="space-y-4 font-mono text-xs">
-            <h5 className="font-sans font-bold text-sm text-foreground uppercase tracking-wide">Mercado</h5>
-            <ul className="space-y-2.5 text-muted-foreground">
-              <li>
-                <Link to="/" search={{ category: 'Arte digital' }} className="hover:text-primary transition-colors">
-                  Arte Digital
-                </Link>
-              </li>
-              <li>
-                <Link to="/" search={{ category: 'Fotografia' }} className="hover:text-primary transition-colors">
-                  Fotografia
-                </Link>
-              </li>
-              <li>
-                <Link to="/" search={{ category: 'Música' }} className="hover:text-primary transition-colors">
-                  Música & Áudio
-                </Link>
-              </li>
-              <li>
-                <Link to="/" search={{ category: 'Arte 3D' }} className="hover:text-primary transition-colors">
-                  Modelos 3D
-                </Link>
-              </li>
-              <li>
-                <Link to="/" search={{}} className="hover:text-primary transition-colors">
-                  Todos os Colecionáveis
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Coluna 2: Minha Conta */}
-          <div className="space-y-4 font-mono text-xs">
-            <h5 className="font-sans font-bold text-sm text-foreground uppercase tracking-wide">Minha Conta</h5>
-            <ul className="space-y-2.5 text-muted-foreground">
-              <li>
-                <Link to="/perfil" className="hover:text-primary transition-colors">
-                  Perfil do Colecionador
-                </Link>
-              </li>
-              <li>
-                <Link to="/carteiras" className="hover:text-primary transition-colors">
-                  Carteiras Conectadas
-                </Link>
-              </li>
-              <li>
-                <Link to="/login" className="hover:text-primary transition-colors">
-                  Acessar Conta / Login
-                </Link>
-              </li>
-              <li>
-                <Link to="/cadastro" className="hover:text-primary transition-colors">
-                  Cadastrar-se
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Coluna 3: Comunidade & Carteiras Suportadas */}
-          <div className="space-y-4 font-mono text-xs">
-            <h5 className="font-sans font-bold text-sm text-foreground uppercase tracking-wide">Comunidade & Web3</h5>
-            
-            {/* Social Chips usando os ícones do projeto */}
-            <div className="flex flex-wrap gap-2 pt-1">
-              <a
-                href="https://discord.gg"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Discord"
-                className="w-9 h-9 rounded-xl bg-secondary border border-border flex items-center justify-center hover:border-primary transition-colors group"
-              >
-                <svg className="w-4 h-4 fill-muted-foreground group-hover:fill-primary transition-colors">
-                  <use href="/icons.svg#discord-icon" />
-                </svg>
-              </a>
-
-              <a
-                href="https://x.com"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Twitter / X"
-                className="w-9 h-9 rounded-xl bg-secondary border border-border flex items-center justify-center hover:border-primary transition-colors group"
-              >
-                <svg className="w-4 h-4 fill-muted-foreground group-hover:fill-primary transition-colors">
-                  <use href="/icons.svg#x-icon" />
-                </svg>
-              </a>
-
-              <a
-                href="https://bsky.app"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Bluesky"
-                className="w-9 h-9 rounded-xl bg-secondary border border-border flex items-center justify-center hover:border-primary transition-colors group"
-              >
-                <svg className="w-4 h-4 fill-muted-foreground group-hover:fill-primary transition-colors">
-                  <use href="/icons.svg#bluesky-icon" />
-                </svg>
-              </a>
-
-              <a
-                href="https://github.com/junglegaming/frontend-challenge"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="GitHub"
-                className="w-9 h-9 rounded-xl bg-secondary border border-border flex items-center justify-center hover:border-primary transition-colors group"
-              >
-                <svg className="w-4 h-4 fill-muted-foreground group-hover:fill-primary transition-colors">
-                  <use href="/icons.svg#github-icon" />
-                </svg>
-              </a>
+          {/* Bloco Inferior: 4 Colunas de Links + Redes Sociais e Carteiras */}
+          <div className="p-6 lg:p-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 font-mono text-xs">
+            {/* Coluna 1: Meu perfil */}
+            <div className="space-y-3">
+              <h5 className="font-bold text-xs text-foreground">Meu perfil</h5>
+              <ul className="space-y-2 text-[11px] text-muted-foreground">
+                <li>
+                  <Link to="/perfil" className="hover:text-primary transition-colors">
+                    Meu perfil
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/perfil" className="hover:text-primary transition-colors">
+                    Minha coleção
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/perfil" className="hover:text-primary transition-colors">
+                    Atividade
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/carteiras" className="hover:text-primary transition-colors">
+                    Estúdio do criador
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/perfil" search={{ tab: 'favoritos' } as any} className="hover:text-primary transition-colors">
+                    Lista de interesse
+                  </Link>
+                </li>
+              </ul>
             </div>
 
-            <div className="pt-2">
-              <span className="text-[11px] text-muted-foreground block mb-2 font-bold uppercase">Carteiras Aceitas</span>
-              <div className="flex flex-wrap gap-1.5">
-                <span className="px-2.5 py-1 bg-secondary rounded-lg border border-border/80 text-[10px] text-foreground font-mono">
-                  MetaMask
-                </span>
-                <span className="px-2.5 py-1 bg-secondary rounded-lg border border-border/80 text-[10px] text-foreground font-mono">
-                  Coinbase
-                </span>
-                <span className="px-2.5 py-1 bg-secondary rounded-lg border border-border/80 text-[10px] text-foreground font-mono">
-                  WalletConnect
-                </span>
-                <span className="px-2.5 py-1 bg-secondary rounded-lg border border-border/80 text-[10px] text-foreground font-mono">
-                  Ledger
-                </span>
+            {/* Coluna 2: Central de ajuda */}
+            <div className="space-y-3">
+              <h5 className="font-bold text-xs text-foreground">Central de ajuda</h5>
+              <ul className="space-y-2 text-[11px] text-muted-foreground">
+                <li>
+                  <Link to="/" className="hover:text-primary transition-colors">
+                    Central de ajuda
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/" className="hover:text-primary transition-colors">
+                    Como comprar NFTs
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/carteiras" className="hover:text-primary transition-colors">
+                    Carteira e segurança
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/" className="hover:text-primary transition-colors">
+                    Política do mercado
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/" className="hover:text-primary transition-colors">
+                    Denunciar item
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Coluna 3: Coleções */}
+            <div className="space-y-3">
+              <h5 className="font-bold text-xs text-foreground">Coleções</h5>
+              <ul className="space-y-2 text-[11px] text-muted-foreground">
+                <li>
+                  <Link to="/" search={{ category: 'Arte digital' } as any} className="hover:text-primary transition-colors">
+                    Arte digital
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/" search={{ category: 'Fotografia' } as any} className="hover:text-primary transition-colors">
+                    Fotografia
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/" search={{ category: 'Música' } as any} className="hover:text-primary transition-colors">
+                    Música
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/" search={{ category: 'Arte 3D' } as any} className="hover:text-primary transition-colors">
+                    Arte 3D
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/" search={{ category: 'Utilidade' } as any} className="hover:text-primary transition-colors">
+                    Utilidade
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Coluna 4: Redes sociais + Carteiras compatíveis */}
+            <div className="space-y-5">
+              <div className="space-y-3">
+                <h5 className="font-bold text-xs text-foreground">Redes sociais</h5>
+                <div className="flex items-center gap-2">
+                  {['f', 'ig', 'tw', 'in', 'yt'].map((social) => (
+                    <a
+                      key={social}
+                      href="#redes-sociais"
+                      aria-label={`Rede social ${social}`}
+                      className="w-7 h-7 rounded border border-primary/40 flex items-center justify-center text-[10px] text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+                    >
+                      {social}
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h5 className="font-bold text-xs text-foreground">Carteiras compatíveis</h5>
+                <div className="inline-block bg-background border border-border rounded px-2.5 py-1.5 text-[9px] font-bold text-primary tracking-wider">
+                  METAMASK • WALLETCONNECT • COINBASE
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Barra Inferior de Direitos Autorais */}
-        <div className="border-t border-border/60 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-[11px] text-muted-foreground">
-          <p>© 2026 KURIO Marketplace. Todos os direitos reservados.</p>
-          <div className="flex items-center gap-6">
-            <span>Desenvolvido para o Jungle Gaming Challenge</span>
-            <span>•</span>
-            <span className="text-primary font-bold">Deep Linking & A11y 100% Ativos</span>
-          </div>
+        {/* Copyright */}
+        <div className="pt-5 text-center font-mono text-[11px] text-muted-foreground">
+          © 2026 Kurio. Propriedade digital para todos.
         </div>
-
       </div>
     </footer>
   )

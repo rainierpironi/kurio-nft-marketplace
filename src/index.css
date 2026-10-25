@@ -5,33 +5,33 @@
 @layer base {
   :root {
     --font-mono: 'Space Mono', monospace;
-    --font-sans: 'Inter', sans-serif;
+    --font-sans: 'Space Mono', monospace;
 
-    --background: #0F0C0A;
-    --foreground: #F2F2F2;
-    --border: #2C2420;
-    --ring: #7EE622;
-    --radius: 0.75rem;
-    --radius-md: 0.5rem;
+    --background: #14100D;
+    --foreground: #F5EFEA;
+    --border: #342820;
+    --ring: #C88246;
+    --radius: 0.5rem;
+    --radius-md: 0.375rem;
   }
 }
 
 @layer base {
   * {
-    border-color: #2C2420;
+    border-color: #342820;
   }
   html {
     color-scheme: dark;
     scroll-behavior: smooth;
   }
   body {
-    background-color: #0F0C0A;
-    color: #F2F2F2;
+    background-color: #14100D;
+    color: #F5EFEA;
     font-family: var(--font-mono);
     -webkit-font-smoothing: antialiased;
   }
-  h1, h2, h3, .font-sans-title {
-    font-family: var(--font-sans);
+  h1, h2, h3, h4, h5, h6, .font-sans-title {
+    font-family: var(--font-mono);
   }
 }
 

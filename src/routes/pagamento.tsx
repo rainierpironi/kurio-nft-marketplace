@@ -2,7 +2,6 @@ import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCart, createOrder, getCheckoutQuote, updateCartItem, removeFromCart } from '@/lib/api'
 import { Button } from '@/components/button'
-import { Separator } from '@/components/separator'
 import { toast } from 'sonner'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
@@ -22,30 +21,28 @@ function Pagamento() {
   const queryClient = useQueryClient()
   const { user: authUser } = useAuth()
 
-  // Chave de Idempotência persistente na montagem do checkout para evitar duplicidade
   const [idempotencyKey, setIdempotencyKey] = useState(generateIdempotencyKey)
-
-  // Controle de Cotação Desatualizada por Evento em Tempo Real (WebSocket)
   const [quoteStale, setQuoteStale] = useState(false)
 
-  // Campos do Formulário Figma
+  // Campos do Formulário Figma (Pagamento.png)
   const [displayName, setDisplayName] = useState('')
   const [username, setUsername] = useState('')
   const [network, setNetwork] = useState('Ethereum')
   const [profileName, setProfileName] = useState('')
   const [walletAddress, setWalletAddress] = useState('')
   const [secondaryWallet, setSecondaryWallet] = useState('')
-  const [walletType, setWalletType] = useState('MetaMask')
+  const [walletType, setWalletType] = useState('Coinbase Wallet')
   const [referralCode, setReferralCode] = useState('')
   const [email, setEmail] = useState('')
   const [ensName, setEnsName] = useState('')
+  const [useAnotherWallet, setUseAnotherWallet] = useState(false)
   const [collectorNote, setCollectorNote] = useState('')
 
   // Cupom
+  const [showCouponInput, setShowCouponInput] = useState(false)
   const [couponCode, setCouponCode] = useState('')
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null)
 
-  // Preenche dados automaticamente se usuário estiver logado
   useEffect(() => {
     if (authUser) {
       setDisplayName(authUser.name || '')
@@ -83,7 +80,6 @@ function Pagamento() {
     return () => window.removeEventListener('KURIO_NFT_UPDATED', handleRealtimeChange)
   }, [cartData?.items])
 
-  // Cotação com validação de cupom e gas fee
   const { data: quoteData, isLoading: isQuoteLoading } = useQuery({
     queryKey: ['checkout-quote', appliedCoupon, cartData?.items],
     queryFn: () => getCheckoutQuote(appliedCoupon || undefined),
@@ -92,7 +88,6 @@ function Pagamento() {
 
   const [hasFailed, setHasFailed] = useState(false)
 
-  // Verifica se algum item excede o estoque disponível
   const hasStockConflict = cartData?.items.some((item) => {
     const available = item.nft?.available ?? 0
     return item.quantity > available
@@ -112,7 +107,6 @@ function Pagamento() {
     },
   })
 
-  // Mutação do Pedido com Chave de Idempotência
   const orderMutation = useMutation({
     mutationFn: async () => {
       if (quoteStale) {
@@ -155,7 +149,6 @@ function Pagamento() {
         toast.success(`Pedido #${response.order.id} confirmado com sucesso!`)
       }
 
-      // Redireciona diretamente para o recibo snapshot da compra
       navigate({
         to: '/confirmacao/$id',
         params: { id: response.order.id },
@@ -193,13 +186,12 @@ function Pagamento() {
 
   if (!cartData?.items.length) {
     return (
-      <div className="container mx-auto px-4 lg:px-8 py-20 text-center flex flex-col items-center">
-        <span className="text-4xl mb-4">🛒</span>
-        <h1 className="font-sans text-2xl font-bold mb-2">Seu carrinho está vazio</h1>
-        <p className="text-muted-foreground font-mono text-xs mb-6">
+      <div className="container mx-auto max-w-7xl px-4 lg:px-8 py-20 text-center flex flex-col items-center font-mono">
+        <h1 className="text-xl font-bold mb-2 text-foreground">Seu carrinho está vazio</h1>
+        <p className="text-muted-foreground text-xs mb-6">
           Adicione colecionáveis ao carrinho antes de prosseguir com o pagamento.
         </p>
-        <Button onClick={() => navigate({ to: '/' })} className="font-mono text-xs rounded-full px-8">
+        <Button onClick={() => navigate({ to: '/' })} className="font-mono text-xs rounded-md px-8">
           Explorar Catálogo
         </Button>
       </div>
@@ -207,10 +199,85 @@ function Pagamento() {
   }
 
   return (
-    <div className="container mx-auto px-4 lg:px-8 py-8 lg:py-12">
-      {/* Breadcrumb */}
-      <div className="font-mono text-xs text-muted-foreground mb-8 flex items-center gap-2">
-        <Link to="/" className="hover:text-foreground">
+    <div className="container mx-auto max-w-7xl px-4 lg:px-8 py-6 lg:py-10 font-mono">
+      {/* Cabeçalho Mobile Fiel a MPagamento.png */}
+      <div className="md:hidden space-y-5 mb-6">
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => navigate({ to: '/carrinho' })}
+            aria-label="Voltar ao carrinho"
+            className="w-9 h-9 rounded-full bg-[#1E1712] border border-border text-foreground flex items-center justify-center cursor-pointer"
+          >
+            ‹
+          </button>
+          <h2 className="text-sm font-bold text-foreground">Pagamento com carteira</h2>
+          <span className="w-9" />
+        </div>
+
+        {/* Seção Mobile: Carteira conectada (Reserva / Principal) Fiel a MPagamento.png */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-foreground">Carteira conectada</span>
+            <Link to="/carteiras" className="text-primary font-bold hover:underline">
+              Trocar carteira
+            </Link>
+          </div>
+
+          {[
+            {
+              id: 'reserva',
+              title: 'Reserva',
+              addr: 'nova.kurio.eth',
+              net: 'Rede Polygon',
+              addressVal: 'nova.kurio.eth',
+              networkVal: 'Polygon',
+            },
+            {
+              id: 'principal',
+              title: 'Principal',
+              addr: walletAddress || '0xA91F...E82C',
+              net: 'Rede principal Ethereum',
+              addressVal: walletAddress || '0xA91F...E82C',
+              networkVal: 'Ethereum',
+            },
+          ].map((cw) => {
+            const isActive = network === cw.networkVal
+            return (
+              <div
+                key={cw.id}
+                onClick={() => {
+                  setNetwork(cw.networkVal)
+                  setWalletAddress(cw.addressVal)
+                }}
+                className={`bg-[#1E1712] border rounded-2xl p-4 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
+                  isActive ? 'border-primary' : 'border-border'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <span
+                    className={`w-4 h-4 rounded-full border mt-0.5 flex items-center justify-center ${
+                      isActive ? 'border-primary' : 'border-muted-foreground'
+                    }`}
+                  >
+                    {isActive && <span className="w-2 h-2 rounded-full bg-primary" />}
+                  </span>
+                  <div className="text-xs space-y-0.5">
+                    <span className="font-bold text-foreground block">{cw.title}</span>
+                    <span className="text-muted-foreground block text-[11px]">{cw.addr}</span>
+                    <span className="text-muted-foreground block text-[11px]">{cw.net}</span>
+                  </div>
+                </div>
+                <span className="text-primary text-xs">✎</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Breadcrumb Fiel a Pagamento.png */}
+      <nav aria-label="Breadcrumb" className="hidden md:flex text-xs text-muted-foreground mb-8 items-center gap-1.5">
+        <Link to="/" className="text-foreground font-bold hover:text-primary">
           Início
         </Link>
         <span>/</span>
@@ -218,20 +285,20 @@ function Pagamento() {
           Mercado
         </Link>
         <span>/</span>
-        <span className="text-foreground font-bold">Pagamento</span>
-      </div>
+        <span className="text-muted-foreground">Pagamento</span>
+      </nav>
 
-      {/* Banner de Revalidação de Cotação em Tempo Real (Requisito Seção 3 e 7 do Desafio) */}
+      {/* Banner de Revalidação de Cotação em Tempo Real */}
       {quoteStale && (
         <div
           role="alert"
-          className="mb-8 bg-primary/10 border border-primary/50 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in duration-200"
+          className="mb-8 bg-primary/10 border border-primary/50 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
         >
           <div className="space-y-1">
-            <p className="font-sans font-bold text-sm text-primary flex items-center gap-2">
+            <p className="font-bold text-xs sm:text-sm text-primary flex items-center gap-2">
               <span>📡</span> Atualização de Preço ou Disponibilidade Detectada!
             </p>
-            <p className="font-mono text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Os valores dos itens no seu carrinho mudaram durante a navegação. Por segurança, revise o novo total e
               confirme a cotação atualizada antes de prosseguir.
             </p>
@@ -239,9 +306,9 @@ function Pagamento() {
           <Button
             type="button"
             onClick={handleConfirmNewQuote}
-            className="rounded-full font-mono text-xs font-bold px-6 shrink-0"
+            className="rounded-md font-mono text-xs font-bold px-5 shrink-0"
           >
-            Confirmar Nova Cotação ({quoteData?.total || '0.0000'} ETH)
+            Confirmar Nova Cotação ({quoteData?.total || '0.000'} ETH)
           </Button>
         </div>
       )}
@@ -250,13 +317,13 @@ function Pagamento() {
       {hasStockConflict && (
         <div
           role="alert"
-          className="mb-8 bg-destructive/10 border border-destructive/50 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+          className="mb-8 bg-destructive/10 border border-destructive/50 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
         >
           <div className="space-y-1">
-            <p className="font-sans font-bold text-sm text-destructive flex items-center gap-2">
+            <p className="font-bold text-xs sm:text-sm text-destructive flex items-center gap-2">
               <span>⚠</span> Estoque Insuficiente para um ou mais itens
             </p>
-            <p className="font-mono text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               A disponibilidade de um NFT no seu carrinho diminuiu em tempo real. Ajuste as quantidades abaixo para
               continuar.
             </p>
@@ -264,27 +331,20 @@ function Pagamento() {
         </div>
       )}
 
-      <div className="flex flex-col lg:flex-row gap-12 lg:gap-16">
-        {/* Lado Esquerdo: Formulário Completo do Figma (Perfil do Colecionador / Dados da Compra) */}
-        <div className="flex-1 space-y-8">
-          <div>
-            <h1 className="font-sans text-2xl sm:text-3xl font-black text-foreground mb-2">
-              Perfil do colecionador
-            </h1>
-            <p className="font-mono text-xs text-muted-foreground">
-              Preencha suas informações para emissão e transferência do colecionável na blockchain.
-            </p>
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-start">
+        {/* Coluna Esquerda: Perfil do colecionador (Fiel a Pagamento.png) */}
+        <div className="lg:col-span-7 space-y-6">
+          <h1 className="text-base font-bold text-foreground">Perfil do colecionador</h1>
 
           <form
             onSubmit={(e) => {
               e.preventDefault()
               orderMutation.mutate()
             }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-5 font-mono text-xs"
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs"
           >
             <div className="space-y-1.5">
-              <label className="text-foreground font-bold">
+              <label className="text-foreground block">
                 Nome de exibição <span className="text-primary">*</span>
               </label>
               <input
@@ -293,12 +353,12 @@ function Pagamento() {
                 placeholder="Ex: Alex Nomad"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-primary transition-colors text-foreground"
+                className="w-full bg-background border border-border rounded-md px-3.5 py-2.5 focus:outline-none focus:border-primary text-foreground"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-foreground font-bold">
+              <label className="text-foreground block">
                 Nome de usuário <span className="text-primary">*</span>
               </label>
               <input
@@ -307,18 +367,18 @@ function Pagamento() {
                 placeholder="Ex: alexnomad"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-primary transition-colors text-foreground"
+                className="w-full bg-background border border-border rounded-md px-3.5 py-2.5 focus:outline-none focus:border-primary text-foreground"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-foreground font-bold">
+              <label className="text-foreground block">
                 Rede <span className="text-primary">*</span>
               </label>
               <select
                 value={network}
                 onChange={(e) => setNetwork(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-primary text-foreground"
+                className="w-full bg-background border border-border rounded-md px-3.5 py-2.5 focus:outline-none focus:border-primary text-foreground"
               >
                 <option value="Ethereum">Ethereum</option>
                 <option value="Polygon">Polygon</option>
@@ -327,7 +387,7 @@ function Pagamento() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-foreground font-bold">
+              <label className="text-foreground block">
                 Nome do perfil <span className="text-primary">*</span>
               </label>
               <input
@@ -336,63 +396,64 @@ function Pagamento() {
                 placeholder="Ex: Alex Nomad Vault"
                 value={profileName}
                 onChange={(e) => setProfileName(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-primary transition-colors text-foreground"
+                className="w-full bg-background border border-border rounded-md px-3.5 py-2.5 focus:outline-none focus:border-primary text-foreground"
               />
             </div>
 
-            <div className="space-y-1.5 md:col-span-2">
-              <label className="text-foreground font-bold">
+            <div className="space-y-1.5 sm:col-span-2">
+              <label className="text-foreground block">
                 Endereço da carteira <span className="text-primary">*</span>
               </label>
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <input
                   type="text"
                   required
                   placeholder="Endereço 0x da carteira principal"
                   value={walletAddress}
                   onChange={(e) => setWalletAddress(e.target.value)}
-                  className="flex-1 bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-primary text-foreground"
+                  className="w-full bg-background border border-border rounded-md px-3.5 py-2.5 focus:outline-none focus:border-primary text-foreground"
                 />
                 <input
                   type="text"
                   placeholder="ENS ou carteira secundária (opcional)"
                   value={secondaryWallet}
                   onChange={(e) => setSecondaryWallet(e.target.value)}
-                  className="flex-1 bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-primary text-foreground"
+                  className="w-full bg-background border border-border rounded-md px-3.5 py-2.5 focus:outline-none focus:border-primary text-foreground"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-foreground font-bold">
+              <label className="text-foreground block">
                 Tipo de carteira <span className="text-primary">*</span>
               </label>
               <select
                 value={walletType}
                 onChange={(e) => setWalletType(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-primary text-foreground"
+                className="w-full bg-background border border-border rounded-md px-3.5 py-2.5 focus:outline-none focus:border-primary text-foreground"
               >
                 <option value="MetaMask">MetaMask</option>
-                <option value="Coinbase">Coinbase Wallet</option>
+                <option value="Coinbase Wallet">Coinbase Wallet</option>
                 <option value="WalletConnect">WalletConnect</option>
-                <option value="Ledger">Ledger Cold Storage</option>
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-foreground font-bold">Código de indicação (opcional)</label>
+              <label className="text-foreground block">
+                Código de indicação <span className="text-primary">*</span>
+              </label>
               <input
                 type="text"
                 placeholder="Ex: KURIO-REF-2026"
                 value={referralCode}
                 onChange={(e) => setReferralCode(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-primary text-foreground"
+                className="w-full bg-background border border-border rounded-md px-3.5 py-2.5 focus:outline-none focus:border-primary text-foreground"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-foreground font-bold">
-                E-mail para recibo <span className="text-primary">*</span>
+              <label className="text-foreground block">
+                E-mail <span className="text-primary">*</span>
               </label>
               <input
                 type="email"
@@ -400,192 +461,271 @@ function Pagamento() {
                 placeholder="seuemail@exemplo.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-primary text-foreground"
+                className="w-full bg-background border border-border rounded-md px-3.5 py-2.5 focus:outline-none focus:border-primary text-foreground"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-foreground font-bold">Domínio Web3 / ENS</label>
+              <label className="text-foreground block">
+                Nome ENS <span className="text-primary">*</span>
+              </label>
               <div className="flex gap-2">
-                <span className="bg-secondary border border-border rounded-xl px-3 py-3 text-muted-foreground">
-                  .eth
+                <span className="bg-background border border-border rounded-md px-3 py-2.5 text-foreground flex items-center gap-1">
+                  .eth <span className="text-[10px]">⌄</span>
                 </span>
                 <input
                   type="text"
                   placeholder="nomad"
                   value={ensName}
                   onChange={(e) => setEnsName(e.target.value)}
-                  className="flex-1 bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-primary text-foreground"
+                  className="flex-1 min-w-0 bg-background border border-border rounded-md px-3.5 py-2.5 focus:outline-none focus:border-primary text-foreground"
                 />
               </div>
             </div>
 
-            <div className="space-y-1.5 md:col-span-2">
-              <label className="text-foreground font-bold">Observação do colecionador (opcional)</label>
+            <div className="sm:col-span-2 pt-1">
+              <label className="inline-flex items-center gap-2 cursor-pointer text-foreground">
+                <input
+                  type="checkbox"
+                  checked={useAnotherWallet}
+                  onChange={(e) => setUseAnotherWallet(e.target.checked)}
+                  className="accent-primary w-3.5 h-3.5"
+                />
+                <span>Usar outra carteira?</span>
+              </label>
+            </div>
+
+            <div className="space-y-1.5 sm:col-span-2 pt-2">
+              <label className="text-foreground block">Observação do colecionador (opcional)</label>
               <textarea
-                rows={3}
-                placeholder="Alguma instrução especial para a transação?"
+                rows={5}
                 value={collectorNote}
                 onChange={(e) => setCollectorNote(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-primary text-foreground resize-none"
+                className="w-full bg-background border border-border rounded-md px-3.5 py-2.5 focus:outline-none focus:border-primary text-foreground resize-none"
               />
             </div>
           </form>
         </div>
 
-        {/* Lado Direito: Resumo de Itens e Cotação */}
-        <div className="w-full lg:w-[440px] shrink-0">
-          <div className="bg-card border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
-            <h2 className="font-sans text-xl font-bold text-foreground">Resumo do Pedido</h2>
+        {/* Coluna Direita: Seus NFTs + Carteira e rede (Fiel a Pagamento.png e MPagamento.png) */}
+        <div className="lg:col-span-5 space-y-5">
+          <h2 className="text-base font-bold text-foreground">Seus NFTs</h2>
 
-            {/* Lista dos NFTs */}
-            <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-              {cartData?.items.map((item) => {
-                const available = item.nft?.available ?? 0
-                const isExceeded = item.quantity > available
+          <div className="flex items-center justify-between border-b border-border pb-2 text-xs font-bold text-foreground">
+            <span>NFTs</span>
+            <span>Subtotal</span>
+          </div>
 
-                return (
-                  <div
-                    key={item.nftId}
-                    className={`flex flex-col gap-2 bg-secondary/80 p-3 rounded-2xl border ${
-                      isExceeded ? 'border-destructive/70 bg-destructive/5' : 'border-border/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-background">
-                        <img
-                          src={
-                            item.nft?.image ||
-                            `https://placehold.co/100x100/e2e8f0/1e293b.png?text=${encodeURIComponent(item.nft?.title?.charAt(0) || 'N')}`
-                          }
-                          alt={item.nft?.title}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
+          {/* Lista de Itens */}
+          <div className="space-y-3">
+            {cartData?.items.map((item) => {
+              const available = item.nft?.available ?? 0
+              const isExceeded = item.quantity > available
+              const tokenId = item.nft?.tokenId || item.nftId.padStart(4, '0')
 
-                      <div className="flex-1 min-w-0">
-                        <p className="font-sans font-bold text-xs text-foreground truncate">{item.nft?.title}</p>
-                        <p className="font-mono text-[11px] text-muted-foreground">
-                          ID: #{item.nftId} • Disp: {available}
-                        </p>
-                      </div>
-
-                      <div className="text-right font-mono text-xs">
-                        <span className="text-muted-foreground block">x{item.quantity}</span>
-                        <span className="font-bold text-primary">
-                          {(parseFloat(item.nft?.price || '0') * item.quantity).toFixed(2)} ETH
-                        </span>
+              return (
+                <div
+                  key={item.nftId}
+                  className={`bg-[#1E1712] p-3.5 rounded-xl border ${
+                    isExceeded ? 'border-destructive' : 'border-border'
+                  } space-y-2`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <img
+                        src={item.nft?.image || '/nfts/ape-emerald.png'}
+                        alt={item.nft?.title}
+                        className="w-14 h-14 rounded-xl object-cover bg-background shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-bold text-xs text-foreground truncate">{item.nft?.title}</p>
+                        <p className="text-[11px] text-muted-foreground">ID do token: #{tokenId}</p>
                       </div>
                     </div>
 
-                    {isExceeded && (
-                      <div className="flex items-center justify-between pt-2 border-t border-destructive/30 font-mono text-[11px] text-destructive">
-                        <span>Disponível agora: {available} un.</span>
-                        <button
-                          type="button"
-                          onClick={() => adjustItemMutation.mutate({ nftId: item.nftId, available })}
-                          className="underline font-bold cursor-pointer hover:text-foreground"
-                        >
-                          {available > 0 ? `Ajustar para ${available}` : 'Remover item'}
-                        </button>
-                      </div>
-                    )}
+                    <span className="text-xs text-muted-foreground shrink-0">(x {item.quantity})</span>
+
+                    <span className="font-bold text-xs sm:text-sm text-primary shrink-0">
+                      {(parseFloat(item.nft?.price || '0') * item.quantity).toFixed(2)} ETH
+                    </span>
                   </div>
-                )
-              })}
-            </div>
 
-            {/* Cupom de Desconto */}
-            <form onSubmit={handleApplyCoupon} className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Código promocional (ex: KURIO10)"
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value)}
-                disabled={!!appliedCoupon}
-                className="flex-1 bg-background border border-border rounded-xl px-3 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary disabled:opacity-50"
-              />
-              {appliedCoupon ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setAppliedCoupon(null)
-                    setCouponCode('')
-                    setIdempotencyKey(generateIdempotencyKey())
-                  }}
-                  className="font-mono text-xs rounded-xl border-destructive/50 text-destructive"
-                >
-                  ✕
-                </Button>
-              ) : (
-                <Button type="submit" size="sm" className="font-mono text-xs rounded-xl font-bold">
-                  Aplicar
-                </Button>
-              )}
-            </form>
-
-            <Separator className="bg-border/60" />
-
-            {/* Linhas da Cotação com ETH strings */}
-            <div className="space-y-2.5 font-mono text-xs">
-              <div className="flex justify-between text-muted-foreground">
-                <span>Subtotal</span>
-                <span className="text-foreground">{quoteData?.subtotal || '0.0000'} ETH</span>
-              </div>
-
-              {appliedCoupon && quoteData?.discount && parseFloat(quoteData.discount) > 0 && (
-                <div className="flex justify-between text-primary font-bold">
-                  <span>Desconto ({appliedCoupon})</span>
-                  <span>-{quoteData.discount} ETH</span>
+                  {isExceeded && (
+                    <div className="flex items-center justify-between pt-2 border-t border-destructive/30 text-[11px] text-destructive">
+                      <span>Disponível agora: {available} un.</span>
+                      <button
+                        type="button"
+                        onClick={() => adjustItemMutation.mutate({ nftId: item.nftId, available })}
+                        className="underline font-bold cursor-pointer hover:text-foreground"
+                      >
+                        {available > 0 ? `Ajustar para ${available}` : 'Remover item'}
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
+              )
+            })}
+          </div>
 
-              <div className="flex justify-between text-muted-foreground">
-                <span>Taxa de rede (Gas Fee)</span>
-                <span className="text-foreground">{quoteData?.gasFee || '0.0042'} ETH</span>
-              </div>
-
-              <div className="flex justify-between items-center text-sm font-bold pt-3 border-t border-border/60">
-                <span className="text-foreground font-sans text-base">Total a Pagar</span>
-                <span className="font-mono text-xl text-primary font-black">
-                  {isQuoteLoading ? 'Calculando...' : `${quoteData?.total || '0.0000'} ETH`}
-                </span>
-              </div>
+          {/* Link / Input de Código Promocional */}
+          <div className="space-y-2">
+            <div className="text-right text-xs text-muted-foreground">
+              Tem um código promocional?{' '}
+              <button
+                type="button"
+                onClick={() => setShowCouponInput((v) => !v)}
+                className="text-primary hover:underline font-bold cursor-pointer"
+              >
+                Aplique aqui
+              </button>
             </div>
 
-            {/* Mensagem de Erro e Botão de Retry com Chave de Idempotência */}
-            {hasFailed && (
-              <div className="bg-destructive/10 border border-destructive/40 p-3 rounded-xl text-xs font-mono text-destructive">
-                <span>⚠ Falha no processamento. Você pode tentar novamente com a mesma chave de idempotência.</span>
-              </div>
-            )}
-
-            {quoteStale ? (
-              <Button
-                type="button"
-                onClick={handleConfirmNewQuote}
-                className="w-full h-12 text-sm font-black rounded-full font-sans bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-              >
-                Confirmar Nova Cotação para Prosseguir
-              </Button>
-            ) : (
-              <Button
-                disabled={orderMutation.isPending || hasStockConflict}
-                onClick={() => orderMutation.mutate()}
-                className="w-full h-12 text-sm font-black rounded-full font-sans text-primary-foreground shadow-lg shadow-primary/20 hover:scale-[1.01] transition-transform"
-              >
-                {orderMutation.isPending
-                  ? 'Processando na blockchain...'
-                  : hasStockConflict
-                  ? 'Ajuste o Estoque Acima'
-                  : hasFailed
-                  ? 'Tentar Novamente (Recuperar Pedido)'
-                  : 'Confirmar e Pagar'}
-              </Button>
+            {(showCouponInput || couponCode || appliedCoupon) && (
+              <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Código promocional (ex: KURIO10)"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value)}
+                  disabled={!!appliedCoupon}
+                  className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary disabled:opacity-50"
+                />
+                {appliedCoupon ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setAppliedCoupon(null)
+                      setCouponCode('')
+                      setIdempotencyKey(generateIdempotencyKey())
+                    }}
+                    className="text-xs rounded-md border-destructive/50 text-destructive"
+                  >
+                    ✕
+                  </Button>
+                ) : (
+                  <Button type="submit" size="sm" className="text-xs rounded-md font-bold">
+                    Aplicar
+                  </Button>
+                )}
+              </form>
             )}
           </div>
+
+          {/* Totais */}
+          <div className="space-y-2.5 text-xs pt-1">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span className="font-bold text-foreground">{quoteData?.subtotal || '0.00'} ETH</span>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Desconto do lançamento</span>
+              <span className="text-foreground">
+                {appliedCoupon && quoteData?.discount ? `(-) ${quoteData.discount} ETH` : '(-) 00.00'}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-start">
+              <span className="text-muted-foreground">Taxa de rede</span>
+              <div className="text-right">
+                <span className="font-bold text-foreground block">{quoteData?.gasFee || '0.016'} ETH</span>
+                <span className="text-[11px] text-primary">Taxa estimada</span>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-border flex justify-between items-center">
+              <span className="font-bold text-sm text-foreground">Total</span>
+              <span className="font-bold text-base text-primary">
+                {isQuoteLoading ? 'Calculando...' : `${quoteData?.total || '0.000'} ETH`}
+              </span>
+            </div>
+          </div>
+
+          {/* Seção: Carteira e rede (Fiel a Pagamento.png e MPagamento.png) */}
+          <div className="space-y-2.5 pt-2">
+            <h3 className="text-sm font-bold text-foreground">Carteira e rede</h3>
+
+            {[
+              { id: 'Multi', label: 'METAMASK • WALLETCONNECT • COINBASE', mobileLabel: 'WalletConnect', badge: 'W', isBadge: true },
+              { id: 'MetaMask', label: 'MetaMask', mobileLabel: 'MetaMask', badge: 'M', isBadge: false },
+              { id: 'Coinbase Wallet', label: 'Coinbase Wallet', mobileLabel: 'Coinbase Wallet', badge: 'C', isBadge: false },
+            ].map((option) => {
+              const isSelected = walletType === option.id
+              return (
+                <label
+                  key={option.id}
+                  onClick={() => setWalletType(option.id)}
+                  className={`flex items-center justify-between gap-3 p-3.5 rounded-xl md:rounded-lg border cursor-pointer transition-colors ${
+                    isSelected ? 'border-primary bg-primary/5' : 'border-border bg-[#1E1712] md:bg-background hover:border-primary/40'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="md:hidden w-8 h-8 rounded-full bg-background border border-border text-primary font-bold text-xs flex items-center justify-center shrink-0">
+                      {option.badge}
+                    </span>
+                    <input
+                      type="radio"
+                      name="walletOption"
+                      checked={isSelected}
+                      onChange={() => setWalletType(option.id)}
+                      className="hidden md:inline-block accent-primary w-3.5 h-3.5"
+                    />
+                    <span
+                      className={
+                        option.isBadge
+                          ? 'hidden md:inline text-[10px] font-bold text-primary tracking-wider'
+                          : 'hidden md:inline text-xs text-foreground'
+                      }
+                    >
+                      {option.label}
+                    </span>
+                    <span className="md:hidden text-xs font-bold text-foreground">
+                      {option.mobileLabel}
+                    </span>
+                  </div>
+                  <span
+                    className={`md:hidden w-4 h-4 rounded-full border flex items-center justify-center ${
+                      isSelected ? 'border-primary' : 'border-muted-foreground'
+                    }`}
+                  >
+                    {isSelected && <span className="w-2 h-2 rounded-full bg-primary" />}
+                  </span>
+                </label>
+              )
+            })}
+          </div>
+
+          {hasFailed && (
+            <div className="bg-destructive/10 border border-destructive/40 p-3 rounded-lg text-xs text-destructive">
+              <span>⚠ Falha no processamento. Você pode tentar novamente com a mesma chave de idempotência.</span>
+            </div>
+          )}
+
+          {quoteStale ? (
+            <Button
+              type="button"
+              onClick={handleConfirmNewQuote}
+              className="w-full h-11 text-xs font-bold rounded-md font-mono bg-primary text-primary-foreground cursor-pointer"
+            >
+              Confirmar Nova Cotação para Prosseguir
+            </Button>
+          ) : (
+            <Button
+              disabled={orderMutation.isPending || hasStockConflict}
+              onClick={() => orderMutation.mutate()}
+              className="w-full h-11 text-xs font-bold rounded-md font-mono bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
+            >
+              {orderMutation.isPending
+                ? 'Processando na blockchain...'
+                : hasStockConflict
+                ? 'Ajuste o Estoque Acima'
+                : hasFailed
+                ? 'Tentar Novamente (Recuperar Pedido)'
+                : 'Confirmar compra'}
+            </Button>
+          )}
         </div>
       </div>
     </div>

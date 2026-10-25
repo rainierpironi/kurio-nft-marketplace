@@ -18,11 +18,14 @@ api.interceptors.request.use((config) => {
 
 export interface NFT {
   id: string
+  tokenId: string
   title: string
   price: string
+  oldPrice?: string
+  badge?: string
   available: number
   totalEditions: number
-  category: 'Arte digital' | 'Fotografia' | 'Música' | 'Arte 3D'
+  category: string
   network: 'Ethereum' | 'Polygon' | 'Solana'
   creator: {
     name: string
@@ -43,6 +46,8 @@ export interface GetNFTsParams {
   category?: string
   network?: string
   sort?: string
+  minPrice?: string | number
+  maxPrice?: string | number
   page?: number
   limit?: number
 }
@@ -78,13 +83,14 @@ export interface ProcessedOrder {
   id: string
   idempotencyKey: string
   userId?: string
-  items: Array<{ nftId: string; quantity: number; title: string; price: string }>
+  items: Array<{ nftId: string; tokenId?: string; image?: string; quantity: number; title: string; price: string }>
   subtotal: string
   discount: string
   gasFee: string
   total: string
   network: string
   walletAddress: string
+  walletType?: string
   transactionHash: string
   blockExplorerUrl: string
   createdAt: string
@@ -103,6 +109,8 @@ export interface Wallet {
   network: string
   isPrimary: boolean
   label: string
+  walletType?: string
+  ensName?: string
 }
 
 export interface User {
@@ -112,6 +120,8 @@ export interface User {
   email: string
   avatar: string
   bio: string
+  ensName?: string
+  walletNickname?: string
   wallets: Wallet[]
   favorites: string[]
 }
@@ -243,6 +253,8 @@ export const addWallet = async (walletData: {
   network: string
   label: string
   isPrimary?: boolean
+  walletType?: string
+  ensName?: string
 }): Promise<{ success: boolean; wallet: Wallet }> => {
   const { data } = await api.post('/wallets', walletData)
   return data
@@ -250,7 +262,7 @@ export const addWallet = async (walletData: {
 
 export const updateWallet = async (
   walletId: string,
-  walletData: { label?: string; isPrimary?: boolean }
+  walletData: { label?: string; isPrimary?: boolean; address?: string; network?: string }
 ): Promise<{ success: boolean; wallet: Wallet }> => {
   const { data } = await api.patch(`/wallets/${walletId}`, walletData)
   return data

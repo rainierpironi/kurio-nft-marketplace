@@ -1,19 +1,19 @@
 import { Link, useNavigate, useLocation } from '@tanstack/react-router'
 import { Button } from '@/components/button'
-import { Badge } from '@/components/badge'
 import { Cart } from '@/components/Cart'
 import { AuthModal } from '@/components/AuthModal'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { useQuery } from '@tanstack/react-query'
-import { getFavorites } from '@/lib/api'
-import { Search, Heart, Menu, X, Home, Compass, Wallet, User } from 'lucide-react'
+import { getFavorites, getCart } from '@/lib/api'
+import { Search, Heart, Menu, X, Home, ScanLine, ShoppingCart, User, LogIn } from 'lucide-react'
 
 type NavSection = 'inicio' | 'mercado' | 'criadores' | 'aprenda'
 
 export function Header() {
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [headerSearch, setHeaderSearch] = useState('')
   const [activeSection, setActiveSection] = useState<NavSection>('inicio')
 
@@ -27,12 +27,21 @@ export function Header() {
     enabled: isAuthenticated,
   })
 
-  const favoritesCount = favData?.favorites?.length ?? user?.favorites?.length ?? 0
+  const { data: cartData } = useQuery({
+    queryKey: ['cart'],
+    queryFn: getCart,
+  })
 
-  // Sincroniza a seção ativa do Header conforme o scroll na Home
+  const favoritesCount = favData?.favorites?.length ?? user?.favorites?.length ?? 0
+  const cartItemsCount = cartData?.items.reduce((total, item) => total + item.quantity, 0) || 0
+
   useEffect(() => {
     if (location.pathname !== '/') {
-      setActiveSection('inicio')
+      if (location.pathname.startsWith('/nft') || location.pathname.startsWith('/carrinho') || location.pathname.startsWith('/pagamento')) {
+        setActiveSection('mercado')
+      } else {
+        setActiveSection('inicio')
+      }
       return
     }
 
@@ -69,7 +78,7 @@ export function Header() {
       }
       const el = document.getElementById(sectionId)
       if (el) {
-        const y = el.getBoundingClientRect().top + window.scrollY - 96
+        const y = el.getBoundingClientRect().top + window.scrollY - 90
         window.scrollTo({ top: y, behavior: 'smooth' })
       }
     }
@@ -87,6 +96,7 @@ export function Header() {
     e.preventDefault()
     const clean = headerSearch.trim()
     setIsMobileMenuOpen(false)
+    setIsSearchOpen(false)
     navigate({
       to: '/',
       search: (prev: Record<string, unknown>) => ({
@@ -98,7 +108,7 @@ export function Header() {
       setTimeout(() => {
         const el = document.getElementById('catalogo')
         if (el) {
-          const y = el.getBoundingClientRect().top + window.scrollY - 96
+          const y = el.getBoundingClientRect().top + window.scrollY - 90
           window.scrollTo({ top: y, behavior: 'smooth' })
         }
       }, 100)
@@ -114,14 +124,12 @@ export function Header() {
     navigate({ to: '/perfil', search: { tab: 'favoritos' } as any })
   }
 
-  const isHome = location.pathname === '/'
-
   return (
     <>
-      <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="container mx-auto flex h-20 items-center justify-between gap-4 px-4 lg:px-8">
-          {/* Logótipo */}
-          <div className="flex items-center gap-6 shrink-0">
+      <header className="sticky top-0 z-40 w-full bg-background/95 backdrop-blur border-b border-border">
+        <div className="container mx-auto max-w-7xl flex h-20 items-center justify-between gap-4 px-4 lg:px-8">
+          {/* Logótipo KURIO (Fiel ao Mockup Figma) */}
+          <div className="flex items-center shrink-0">
             <Link
               to="/"
               onClick={() => {
@@ -129,22 +137,21 @@ export function Header() {
                 setIsMobileMenuOpen(false)
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
-              className="font-mono text-2xl font-black tracking-widest text-primary flex items-center gap-2 hover:opacity-90 transition-opacity"
+              className="font-mono text-xl font-bold tracking-[0.2em] text-foreground hover:text-primary transition-colors"
             >
-              <span className="w-3 h-3 rounded-full bg-primary inline-block shadow-[0_0_10px_#7EE622]" />
               KURIO
             </Link>
           </div>
 
           {/* Navegação Central (Desktop) */}
-          <nav aria-label="Navegação Principal" className="hidden md:flex items-center gap-6 lg:gap-8">
+          <nav aria-label="Navegação Principal" className="hidden md:flex items-center h-full gap-8 lg:gap-10">
             <button
               type="button"
               onClick={() => scrollToSection(null, 'inicio')}
-              className={`text-[15px] font-medium transition-colors cursor-pointer pb-1 ${
-                isHome && activeSection === 'inicio'
-                  ? 'text-primary border-b-2 border-primary font-bold'
-                  : 'text-muted-foreground hover:text-foreground'
+              className={`h-full flex items-center font-mono text-xs transition-colors cursor-pointer border-b-2 ${
+                activeSection === 'inicio'
+                  ? 'text-primary border-primary font-bold'
+                  : 'text-foreground/80 border-transparent hover:text-foreground'
               }`}
             >
               Início
@@ -153,10 +160,10 @@ export function Header() {
             <button
               type="button"
               onClick={() => scrollToSection('catalogo', 'mercado')}
-              className={`text-[15px] font-medium transition-colors cursor-pointer pb-1 ${
-                isHome && activeSection === 'mercado'
-                  ? 'text-primary border-b-2 border-primary font-bold'
-                  : 'text-muted-foreground hover:text-foreground'
+              className={`h-full flex items-center font-mono text-xs transition-colors cursor-pointer border-b-2 ${
+                activeSection === 'mercado'
+                  ? 'text-primary border-primary font-bold'
+                  : 'text-foreground/80 border-transparent hover:text-foreground'
               }`}
             >
               Mercado
@@ -165,10 +172,10 @@ export function Header() {
             <button
               type="button"
               onClick={() => scrollToSection('criadores', 'criadores')}
-              className={`text-[15px] font-medium transition-colors cursor-pointer pb-1 ${
-                isHome && activeSection === 'criadores'
-                  ? 'text-primary border-b-2 border-primary font-bold'
-                  : 'text-muted-foreground hover:text-foreground'
+              className={`h-full flex items-center font-mono text-xs transition-colors cursor-pointer border-b-2 ${
+                activeSection === 'criadores'
+                  ? 'text-primary border-primary font-bold'
+                  : 'text-foreground/80 border-transparent hover:text-foreground'
               }`}
             >
               Criadores
@@ -177,79 +184,73 @@ export function Header() {
             <button
               type="button"
               onClick={() => scrollToSection('aprenda', 'aprenda')}
-              className={`text-[15px] font-medium transition-colors cursor-pointer pb-1 ${
-                isHome && activeSection === 'aprenda'
-                  ? 'text-primary border-b-2 border-primary font-bold'
-                  : 'text-muted-foreground hover:text-foreground'
+              className={`h-full flex items-center font-mono text-xs transition-colors cursor-pointer border-b-2 ${
+                activeSection === 'aprenda'
+                  ? 'text-primary border-primary font-bold'
+                  : 'text-foreground/80 border-transparent hover:text-foreground'
               }`}
             >
               Aprenda
             </button>
           </nav>
 
-          {/* Busca Rápida no Header (Desktop XL) */}
-          <form onSubmit={handleHeaderSearch} className="hidden xl:flex items-center relative w-60">
-            <input
-              type="text"
-              placeholder="Buscar NFT ou coleção..."
-              value={headerSearch}
-              onChange={(e) => setHeaderSearch(e.target.value)}
-              aria-label="Buscar NFT no cabeçalho"
-              className="w-full bg-secondary/90 border border-border rounded-full pl-4 pr-9 py-1.5 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-            />
-            <button
-              type="submit"
-              aria-label="Executar busca"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
-            >
-              <Search className="w-3.5 h-3.5" />
-            </button>
-          </form>
+          {/* Ações à Direita: Busca, Carrinho, Botão Entrar / Perfil */}
+          <div className="flex items-center gap-3 sm:gap-5">
+            {isSearchOpen ? (
+              <form onSubmit={handleHeaderSearch} className="hidden sm:flex items-center relative w-56">
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Buscar NFT..."
+                  value={headerSearch}
+                  onChange={(e) => setHeaderSearch(e.target.value)}
+                  aria-label="Buscar NFT no cabeçalho"
+                  className="w-full bg-card border border-border rounded-md pl-3 pr-8 py-1.5 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsSearchOpen(false)}
+                  aria-label="Fechar busca"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs cursor-pointer"
+                >
+                  ✕
+                </button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsSearchOpen(true)}
+                aria-label="Buscar NFT"
+                className="p-2 text-foreground/80 hover:text-primary transition-colors cursor-pointer"
+              >
+                <Search className="w-5 h-5" />
+              </button>
+            )}
 
-          {/* Ações: Favoritos, Carrinho, Login / Usuário e Menu Mobile */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Atalho de Favoritos */}
-            <button
-              type="button"
-              onClick={handleFavoritesClick}
-              aria-label="Meus Favoritos"
-              title="Meus Favoritos"
-              className="relative p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-secondary/60 transition-colors cursor-pointer"
-            >
-              <Heart className={`w-5 h-5 ${favoritesCount > 0 ? 'fill-primary text-primary' : ''}`} />
-              {favoritesCount > 0 && (
-                <Badge className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary p-0 text-[10px] text-primary-foreground font-mono font-bold">
-                  {favoritesCount}
-                </Badge>
-              )}
-            </button>
-
-            {/* Carrinho (Drawer) */}
+            {/* Carrinho (Drawer + Badge Âmbar) */}
             <Cart />
 
             {isAuthenticated && user ? (
               <div className="flex items-center gap-2 sm:gap-3">
                 <Link
                   to="/carteiras"
-                  className="font-mono text-xs text-muted-foreground hover:text-foreground hidden sm:flex items-center gap-1.5 border border-border/80 hover:border-primary/50 px-3 py-1.5 rounded-full transition-colors"
-                  activeProps={{ className: 'border-primary text-primary bg-primary/10 font-bold' }}
-                  title="Gerenciar Carteiras Conectadas"
+                  className="font-mono text-xs text-muted-foreground hover:text-foreground hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border hover:border-primary transition-colors"
+                  activeProps={{ className: 'border-primary text-primary font-bold' }}
                 >
-                  <span>👛</span>
-                  <span className="hidden lg:inline">Carteiras</span>
+                  Carteiras
                 </Link>
 
                 <Link
                   to="/perfil"
-                  className="flex items-center gap-2 bg-secondary/80 hover:bg-secondary border border-border px-2.5 sm:px-3 py-1.5 rounded-full transition-colors group"
-                  activeProps={{ className: 'border-primary bg-secondary' }}
+                  className="flex items-center gap-2 bg-card hover:bg-secondary border border-border px-3 py-1.5 rounded-md transition-colors"
+                  activeProps={{ className: 'border-primary' }}
                 >
                   <img
                     src={user.avatar}
                     alt={user.name}
-                    className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover border border-primary/40 group-hover:border-primary"
+                    className="w-6 h-6 rounded-full object-cover border border-primary"
                   />
-                  <span className="font-mono text-xs hidden sm:inline-block font-medium text-foreground">
+                  <span className="font-mono text-xs hidden sm:inline-block font-bold text-foreground">
                     {user.name.split(' ')[0]}
                   </span>
                 </Link>
@@ -258,31 +259,28 @@ export function Header() {
                   variant="ghost"
                   size="sm"
                   onClick={logout}
-                  className="hidden sm:inline-flex text-xs font-mono text-muted-foreground hover:text-destructive px-2.5 h-8"
-                  title="Encerrar Sessão"
+                  className="hidden sm:inline-flex text-xs font-mono text-muted-foreground hover:text-destructive px-2 h-8"
                 >
                   Sair
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsAuthOpen(true)}
-                  className="border-primary text-primary hover:bg-primary hover:text-primary-foreground rounded-full px-4 sm:px-5 font-mono text-xs sm:text-sm h-9 transition-all font-bold"
-                >
-                  <span className="mr-1.5">↪</span> Entrar
-                </Button>
-              </div>
+              <Button
+                onClick={() => setIsAuthOpen(true)}
+                className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-5 py-2 h-9 font-mono text-xs font-bold flex items-center gap-2 cursor-pointer"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Entrar</span>
+              </Button>
             )}
 
-            {/* Botão Hambúrguer Mobile */}
+            {/* Botão Menu Mobile */}
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen((prev) => !prev)}
               aria-label={isMobileMenuOpen ? 'Fechar menu de navegação' : 'Abrir menu de navegação'}
               aria-expanded={isMobileMenuOpen}
-              className="md:hidden p-2 rounded-xl border border-border bg-secondary/60 text-foreground hover:border-primary transition-colors cursor-pointer"
+              className="md:hidden p-2 rounded-md border border-border bg-card text-foreground hover:border-primary transition-colors cursor-pointer"
             >
               {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -291,14 +289,14 @@ export function Header() {
 
         {/* Menu Mobile Expandido */}
         {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-border/80 bg-card/98 backdrop-blur-xl px-4 py-5 space-y-4 animate-in slide-in-from-top-2 duration-200">
+          <div className="md:hidden border-t border-border bg-card px-4 py-5 space-y-4">
             <form onSubmit={handleHeaderSearch} className="relative">
               <input
                 type="text"
-                placeholder="Buscar por nome, artista ou coleção..."
+                placeholder="Explorar coleções..."
                 value={headerSearch}
                 onChange={(e) => setHeaderSearch(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl pl-4 pr-10 py-2.5 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+                className="w-full bg-background border border-border rounded-lg pl-4 pr-10 py-2.5 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
               />
               <button
                 type="submit"
@@ -313,158 +311,96 @@ export function Header() {
               <button
                 type="button"
                 onClick={() => scrollToSection(null, 'inicio')}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
-                  isHome && activeSection === 'inicio'
-                    ? 'bg-primary/15 text-primary font-bold'
-                    : 'text-foreground hover:bg-secondary'
-                }`}
+                className="flex items-center justify-between px-3 py-2.5 rounded-lg text-left text-foreground hover:bg-secondary cursor-pointer"
               >
                 <span>Início</span>
                 <span>→</span>
               </button>
-
               <button
                 type="button"
                 onClick={() => scrollToSection('catalogo', 'mercado')}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
-                  isHome && activeSection === 'mercado'
-                    ? 'bg-primary/15 text-primary font-bold'
-                    : 'text-foreground hover:bg-secondary'
-                }`}
+                className="flex items-center justify-between px-3 py-2.5 rounded-lg text-left text-foreground hover:bg-secondary cursor-pointer"
               >
-                <span>Mercado & Catálogo</span>
+                <span>Mercado</span>
                 <span>→</span>
               </button>
-
               <button
                 type="button"
                 onClick={() => scrollToSection('criadores', 'criadores')}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
-                  isHome && activeSection === 'criadores'
-                    ? 'bg-primary/15 text-primary font-bold'
-                    : 'text-foreground hover:bg-secondary'
-                }`}
+                className="flex items-center justify-between px-3 py-2.5 rounded-lg text-left text-foreground hover:bg-secondary cursor-pointer"
               >
-                <span>Criadores em Destaque</span>
+                <span>Criadores</span>
                 <span>→</span>
               </button>
-
               <button
                 type="button"
                 onClick={() => scrollToSection('aprenda', 'aprenda')}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
-                  isHome && activeSection === 'aprenda'
-                    ? 'bg-primary/15 text-primary font-bold'
-                    : 'text-foreground hover:bg-secondary'
-                }`}
+                className="flex items-center justify-between px-3 py-2.5 rounded-lg text-left text-foreground hover:bg-secondary cursor-pointer"
               >
-                <span>Aprenda (Blog & Guias Web3)</span>
+                <span>Aprenda</span>
                 <span>→</span>
               </button>
+              <Link
+                to="/carrinho"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex items-center justify-between px-3 py-2.5 rounded-lg text-left text-foreground hover:bg-secondary"
+              >
+                <span>Carrinho ({cartItemsCount})</span>
+                <span>→</span>
+              </Link>
             </nav>
-
-            <div className="pt-3 border-t border-border/60 flex flex-wrap items-center justify-between gap-2">
-              {isAuthenticated && user ? (
-                <>
-                  <Link
-                    to="/carteiras"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex-1 text-center font-mono text-xs py-2 px-3 rounded-xl bg-secondary border border-border text-foreground hover:border-primary"
-                  >
-                    👛 Minhas Carteiras
-                  </Link>
-                  <Link
-                    to="/perfil"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex-1 text-center font-mono text-xs py-2 px-3 rounded-xl bg-secondary border border-border text-foreground hover:border-primary"
-                  >
-                    👤 Meu Perfil
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMobileMenuOpen(false)
-                      logout()
-                    }}
-                    className="w-full mt-1 text-center font-mono text-xs py-2 px-3 rounded-xl bg-destructive/15 text-destructive font-bold cursor-pointer"
-                  >
-                    Encerrar Sessão
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link
-                    to="/login"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex-1 text-center font-mono text-xs py-2.5 px-3 rounded-xl bg-primary text-primary-foreground font-bold"
-                  >
-                    Entrar na Conta
-                  </Link>
-                  <Link
-                    to="/cadastro"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex-1 text-center font-mono text-xs py-2.5 px-3 rounded-xl bg-secondary border border-border text-foreground"
-                  >
-                    Criar Conta
-                  </Link>
-                </>
-              )}
-            </div>
           </div>
         )}
       </header>
 
-      {/* Barra de Navegação Inferior Mobile (Fiel ao Frame Mobile do Figma) */}
+      {/* Barra de Navegação Inferior Mobile (Fiel a MInício.png) */}
       <nav
         aria-label="Navegação Inferior Mobile"
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-card/95 backdrop-blur-lg border-t border-border/80 px-4 py-2 flex items-center justify-around shadow-2xl"
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[#1E1712] border-t border-border rounded-t-3xl h-16 px-6 flex items-center justify-between shadow-2xl"
       >
         <button
           type="button"
           onClick={() => scrollToSection(null, 'inicio')}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer ${
-            isHome && activeSection === 'inicio' ? 'text-primary font-bold' : 'text-muted-foreground hover:text-foreground'
+          aria-label="Início"
+          className={`p-2 transition-colors cursor-pointer ${
+            location.pathname === '/' && activeSection === 'inicio' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           <Home className="w-5 h-5" />
-          <span className="font-mono text-[10px]">Início</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => scrollToSection('catalogo', 'mercado')}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer ${
-            isHome && activeSection === 'mercado' ? 'text-primary font-bold' : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Compass className="w-5 h-5" />
-          <span className="font-mono text-[10px]">Mercado</span>
         </button>
 
         <button
           type="button"
           onClick={handleFavoritesClick}
-          className={`relative flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer ${
-            location.pathname === '/perfil' && (location.search as any)?.tab === 'favoritos'
-              ? 'text-primary font-bold'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
+          aria-label="Favoritos"
+          className="relative p-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
         >
-          <Heart className="w-5 h-5" />
-          <span className="font-mono text-[10px]">Favoritos</span>
-          {favoritesCount > 0 && (
-            <span className="absolute top-0.5 right-2 w-2 h-2 rounded-full bg-primary" />
-          )}
+          <Heart className={`w-5 h-5 ${favoritesCount > 0 ? 'fill-primary text-primary' : ''}`} />
+        </button>
+
+        {/* Botão Central Elevado Âmbar (Scanner / Explorar) */}
+        <button
+          type="button"
+          onClick={() => scrollToSection('catalogo', 'mercado')}
+          aria-label="Explorar Mercado"
+          className="w-14 h-14 -mt-8 rounded-full bg-primary text-primary-foreground shadow-xl flex items-center justify-center border-4 border-background cursor-pointer hover:bg-primary/90 transition-transform active:scale-95"
+        >
+          <ScanLine className="w-6 h-6" />
         </button>
 
         <Link
-          to="/carteiras"
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors ${
-            location.pathname === '/carteiras' ? 'text-primary font-bold' : 'text-muted-foreground hover:text-foreground'
+          to="/carrinho"
+          aria-label="Carrinho de NFTs"
+          className={`relative p-2 transition-colors ${
+            location.pathname === '/carrinho' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          <Wallet className="w-5 h-5" />
-          <span className="font-mono text-[10px]">Carteiras</span>
+          <ShoppingCart className="w-5 h-5" />
+          {cartItemsCount > 0 && (
+            <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-primary text-primary-foreground font-mono text-[9px] font-bold flex items-center justify-center">
+              {cartItemsCount}
+            </span>
+          )}
         </Link>
 
         <button
@@ -476,18 +412,15 @@ export function Header() {
               setIsAuthOpen(true)
             }
           }}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors cursor-pointer ${
-            location.pathname === '/perfil' && !(location.search as any)?.tab
-              ? 'text-primary font-bold'
-              : 'text-muted-foreground hover:text-foreground'
+          aria-label="Perfil"
+          className={`p-2 transition-colors cursor-pointer ${
+            location.pathname === '/perfil' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           <User className="w-5 h-5" />
-          <span className="font-mono text-[10px]">{isAuthenticated ? 'Perfil' : 'Entrar'}</span>
         </button>
       </nav>
 
-      {/* Instância da Modal de Autenticação */}
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </>
   )
