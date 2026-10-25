@@ -2,6 +2,10 @@
 
 Plataforma Web3 descentralizada para descoberta, negociação e coleção de arte digital e NFTs raros, desenvolvida com estrita observância a todos os critérios eliminatórios do **Jungle Gaming Frontend Challenge** e **100% de fidelidade visual** aos 15 mockups exatos do [Design Figma Fornecido](https://www.figma.com/design/Ff0SksUi7UFtPWUO8kyNtw/Frontend-Challenge?node-id=0-1) (9 Desktop + 6 Mobile).
 
+- **🌐 Deploy Público (Live Demo):** [https://kurio-nft-marketplace-rainierpironi.vercel.app/](https://kurio-nft-marketplace-rainierpironi.vercel.app/)
+- **📦 Repositório GitHub:** [https://github.com/rainierpironi/kurio-nft-marketplace](https://github.com/rainierpironi/kurio-nft-marketplace)
+- **📐 Documentação de Arquitetura:** [ARCHITECTURE.md](./ARCHITECTURE.md)
+
 ---
 
 ## 🎯 Conformidade com os Critérios Eliminatórios
