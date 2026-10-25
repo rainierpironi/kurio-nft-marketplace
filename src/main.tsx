@@ -24,14 +24,16 @@ declare module '@tanstack/react-router' {
   }
 }
 
-// Função para iniciar o MSW em ambiente de desenvolvimento
+// Inicia o MSW tanto em ambiente de desenvolvimento como em build/preview/deploy de avaliação
 async function enableMocking() {
- if (!import.meta.env.DEV) {
-    return
-  }
   const { worker } = await import('./mocks/browser')
   // 'bypass' evita que o MSW mostre avisos no terminal para ficheiros estáticos (imagens, fontes, etc)
-  return worker.start({ onUnhandledFrame: 'bypass' })
+  return worker.start({
+    onUnhandledFrame: 'bypass',
+    serviceWorker: {
+      url: '/mockServiceWorker.js',
+    },
+  })
 }
 
 enableMocking().then(() => {

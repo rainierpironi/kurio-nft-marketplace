@@ -10,6 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CadastroRouteImport } from './routes/cadastro'
+import { Route as CarteirasRouteImport } from './routes/carteiras'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as PagamentoRouteImport } from './routes/pagamento'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as ConfirmacaoIdRouteImport } from './routes/confirmacao.$id'
@@ -18,6 +21,21 @@ import { Route as NftIdRouteImport } from './routes/nft.$id'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CadastroRoute = CadastroRouteImport.update({
+  id: '/cadastro',
+  path: '/cadastro',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CarteirasRoute = CarteirasRouteImport.update({
+  id: '/carteiras',
+  path: '/carteiras',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PagamentoRoute = PagamentoRouteImport.update({
@@ -43,6 +61,9 @@ const NftIdRoute = NftIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/cadastro': typeof CadastroRoute
+  '/carteiras': typeof CarteirasRoute
+  '/login': typeof LoginRoute
   '/pagamento': typeof PagamentoRoute
   '/perfil': typeof PerfilRoute
   '/confirmacao/$id': typeof ConfirmacaoIdRoute
@@ -50,6 +71,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/cadastro': typeof CadastroRoute
+  '/carteiras': typeof CarteirasRoute
+  '/login': typeof LoginRoute
   '/pagamento': typeof PagamentoRoute
   '/perfil': typeof PerfilRoute
   '/confirmacao/$id': typeof ConfirmacaoIdRoute
@@ -58,6 +82,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/cadastro': typeof CadastroRoute
+  '/carteiras': typeof CarteirasRoute
+  '/login': typeof LoginRoute
   '/pagamento': typeof PagamentoRoute
   '/perfil': typeof PerfilRoute
   '/confirmacao/$id': typeof ConfirmacaoIdRoute
@@ -65,12 +92,31 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/pagamento' | '/perfil' | '/confirmacao/$id' | '/nft/$id'
+  fullPaths:
+    | '/'
+    | '/cadastro'
+    | '/carteiras'
+    | '/login'
+    | '/pagamento'
+    | '/perfil'
+    | '/confirmacao/$id'
+    | '/nft/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/pagamento' | '/perfil' | '/confirmacao/$id' | '/nft/$id'
+  to:
+    | '/'
+    | '/cadastro'
+    | '/carteiras'
+    | '/login'
+    | '/pagamento'
+    | '/perfil'
+    | '/confirmacao/$id'
+    | '/nft/$id'
   id:
     | '__root__'
     | '/'
+    | '/cadastro'
+    | '/carteiras'
+    | '/login'
     | '/pagamento'
     | '/perfil'
     | '/confirmacao/$id'
@@ -79,6 +125,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CadastroRoute: typeof CadastroRoute
+  CarteirasRoute: typeof CarteirasRoute
+  LoginRoute: typeof LoginRoute
   PagamentoRoute: typeof PagamentoRoute
   PerfilRoute: typeof PerfilRoute
   ConfirmacaoIdRoute: typeof ConfirmacaoIdRoute
@@ -92,6 +141,27 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cadastro': {
+      id: '/cadastro'
+      path: '/cadastro'
+      fullPath: '/cadastro'
+      preLoaderRoute: typeof CadastroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/carteiras': {
+      id: '/carteiras'
+      path: '/carteiras'
+      fullPath: '/carteiras'
+      preLoaderRoute: typeof CarteirasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pagamento': {
@@ -127,6 +197,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CadastroRoute: CadastroRoute,
+  CarteirasRoute: CarteirasRoute,
+  LoginRoute: LoginRoute,
   PagamentoRoute: PagamentoRoute,
   PerfilRoute: PerfilRoute,
   ConfirmacaoIdRoute: ConfirmacaoIdRoute,

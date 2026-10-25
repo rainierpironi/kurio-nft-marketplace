@@ -56,7 +56,16 @@ export function Header() {
             <Cart />
 
             {isAuthenticated && user ? (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Link
+                  to="/carteiras"
+                  className="font-mono text-xs text-muted-foreground hover:text-foreground hidden sm:flex items-center gap-1.5 border border-border/70 hover:border-primary/50 px-3 py-1.5 rounded-full transition-colors"
+                  title="Gerenciar Carteiras Conectadas"
+                >
+                  <span>👛</span>
+                  <span className="hidden md:inline">Carteiras</span>
+                </Link>
+
                 <Link
                   to="/perfil"
                   className="flex items-center gap-2.5 bg-secondary/80 hover:bg-secondary border border-border px-3 py-1.5 rounded-full transition-colors group"

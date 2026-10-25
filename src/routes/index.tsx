@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { getNFTs } from '@/lib/api'
 import { NFTCard } from '@/components/NFTCard'
@@ -6,6 +6,7 @@ import { Button } from '@/components/button'
 import { Skeleton } from '@/components/skeleton'
 import { useState } from 'react'
 import { AuthModal } from '@/components/AuthModal'
+import { toast } from 'sonner'
 
 interface SearchParams {
   q?: string
@@ -374,6 +375,223 @@ function Index() {
           )}
         </main>
       </div>
+
+      {/* Frame Figma: Promos (Crie sua coleção + Criadores em Destaque) */}
+      <section className="pt-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+          
+          {/* Card Esquerdo: Crie sua própria coleção */}
+          <div className="lg:col-span-7 bg-gradient-to-br from-[#1C1613] to-[#120E0C] border border-border/80 rounded-3xl p-8 lg:p-10 flex flex-col justify-between shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="space-y-4 relative z-10">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[11px] bg-primary/20 text-primary font-bold px-3 py-1 rounded-full border border-primary/30 uppercase tracking-widest">
+                  Para Criadores & Artistas
+                </span>
+                <span className="font-mono text-xs text-muted-foreground">0% Taxa de Listagem</span>
+              </div>
+
+              <h2 className="font-sans text-2xl sm:text-3xl font-black text-foreground">
+                Crie sua própria coleção de NFTs na Kurio
+              </h2>
+
+              <p className="font-mono text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-xl">
+                Tem arte digital exclusiva? Publique seus colecionáveis com contratos inteligentes auditados, 
+                royalties perpétuos definidos por você e alcance imediato a milhares de colecionadores Web3.
+              </p>
+            </div>
+
+            <div className="pt-8 flex flex-wrap items-center gap-4 relative z-10">
+              <Link to="/cadastro">
+                <Button size="lg" className="rounded-full px-8 font-sans font-bold text-sm h-12 shadow-lg shadow-primary/20">
+                  Começar a Criar
+                </Button>
+              </Link>
+              <Link to="/carteiras">
+                <Button variant="outline" size="lg" className="rounded-full px-6 font-mono text-xs h-12 border-border hover:bg-secondary">
+                  Conectar Carteira
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          {/* Card Direito: Criadores em Destaque da Semana */}
+          <div className="lg:col-span-5 bg-card border border-border/80 rounded-3xl p-8 flex flex-col justify-between shadow-xl">
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <span className="font-mono text-[11px] text-primary uppercase font-bold tracking-widest block">
+                    Em Alta
+                  </span>
+                  <h3 className="font-sans font-bold text-xl text-foreground">Top Criadores da Semana</h3>
+                </div>
+                <span className="text-xl">🏆</span>
+              </div>
+
+              <div className="space-y-4">
+                {[
+                  {
+                    name: 'Alex Nomad',
+                    handle: '@alexnomad',
+                    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+                    sales: '42.8 ETH',
+                    items: '18 itens',
+                  },
+                  {
+                    name: 'Sara Nova',
+                    handle: '@saranova',
+                    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80',
+                    sales: '38.2 ETH',
+                    items: '24 itens',
+                  },
+                  {
+                    name: 'Cyber Vortex',
+                    handle: '@cybervortex',
+                    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
+                    sales: '29.5 ETH',
+                    items: '12 itens',
+                  },
+                ].map((creator, i) => (
+                  <div key={creator.handle} className="flex items-center justify-between p-3.5 rounded-2xl bg-secondary/50 border border-border/50 hover:border-primary/40 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-xs font-bold text-muted-foreground w-4">
+                        0{i + 1}
+                      </span>
+                      <img
+                        src={creator.avatar}
+                        alt={creator.name}
+                        className="w-10 h-10 rounded-full object-cover border border-border"
+                      />
+                      <div>
+                        <h4 className="font-sans font-bold text-sm text-foreground flex items-center gap-1.5">
+                          {creator.name}
+                          <span className="text-[10px] text-primary" title="Verificado">✓</span>
+                        </h4>
+                        <p className="font-mono text-xs text-muted-foreground">{creator.handle}</p>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <p className="font-mono text-xs font-bold text-primary">{creator.sales}</p>
+                      <button
+                        onClick={() => toast.success(`Você começou a seguir ${creator.name}!`)}
+                        className="font-mono text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
+                      >
+                        Seguir
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <p className="font-mono text-[11px] text-muted-foreground text-center pt-4">
+              Volume apurado nas últimas 24h na rede Ethereum.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      {/* Frame Figma: Blog & Guias da Comunidade */}
+      <section className="pt-8 pb-4 space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div className="space-y-2">
+            <span className="font-mono text-xs text-primary font-bold tracking-widest uppercase bg-primary/10 px-3 py-1 rounded-full inline-block border border-primary/20">
+              Aprenda & Conheça
+            </span>
+            <h2 className="font-sans text-2xl sm:text-3xl font-black text-foreground">
+              Artigos e Guias da Comunidade
+            </h2>
+            <p className="font-mono text-xs sm:text-sm text-muted-foreground max-w-xl">
+              Tudo o que você precisa entender sobre o ecossistema Web3, custódia descentralizada e curadoria de arte digital.
+            </p>
+          </div>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => toast.info('Mais artigos em breve na documentação oficial da Kurio!')}
+            className="font-mono text-xs rounded-full border-border hover:bg-secondary w-fit"
+          >
+            Ver Todos os Guias →
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[
+            {
+              title: 'Como Avaliar a Raridade e Autenticidade de um NFT na Ethereum',
+              summary: 'Entenda metadados IPFS, atributos ERC-721 e como verificar o histórico de transações na blockchain sem intermediários.',
+              tag: 'Guia Prático',
+              readTime: '5 min',
+              image: 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=600&auto=format&fit=crop&q=80',
+              date: '24 Out 2026',
+            },
+            {
+              title: 'Segurança em Primeiro Lugar: Boas Práticas para Chaves e Carteiras',
+              summary: 'Como manter seus ativos seguros, reconhecer assinaturas maliciosas de contratos e utilizar carteiras frias (cold wallets).',
+              tag: 'Segurança Web3',
+              readTime: '4 min',
+              image: 'https://images.unsplash.com/photo-1639762681057-408e52192e55?w=600&auto=format&fit=crop&q=80',
+              date: '20 Out 2026',
+            },
+            {
+              title: 'O Impacto dos Royalties Perpétuos na Nova Economia Criativa',
+              summary: 'Como contratos programáveis estão remodelando o mercado da arte e garantindo sustento contínuo a artistas digitais independentes.',
+              tag: 'Economia Criativa',
+              readTime: '6 min',
+              image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80',
+              date: '16 Out 2026',
+            },
+          ].map((post, index) => (
+            <article
+              key={index}
+              className="bg-card border border-border/80 rounded-3xl overflow-hidden hover:border-primary/50 transition-all hover:-translate-y-1 shadow-lg group flex flex-col justify-between"
+            >
+              <div>
+                <div className="aspect-[16/10] overflow-hidden relative">
+                  <img
+                    src={post.image}
+                    alt={post.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute top-3 left-3 bg-background/80 backdrop-blur-md px-3 py-1 rounded-lg border border-border/60 font-mono text-[10px] text-primary font-bold">
+                    {post.tag}
+                  </div>
+                </div>
+
+                <div className="p-6 space-y-3">
+                  <div className="flex items-center gap-3 font-mono text-[11px] text-muted-foreground">
+                    <span>{post.date}</span>
+                    <span>•</span>
+                    <span>{post.readTime} de leitura</span>
+                  </div>
+
+                  <h3 className="font-sans font-bold text-base text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                    {post.title}
+                  </h3>
+
+                  <p className="font-mono text-xs text-muted-foreground leading-relaxed line-clamp-3">
+                    {post.summary}
+                  </p>
+                </div>
+              </div>
+
+              <div className="px-6 pb-6 pt-2">
+                <button
+                  type="button"
+                  onClick={() => toast.info(`Lendo "${post.title}". O leitor completo será integrado em breve.`)}
+                  className="font-mono text-xs text-primary font-bold group-hover:underline flex items-center gap-1.5 cursor-pointer"
+                >
+                  Ler Artigo Completo <span>→</span>
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
 
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </div>

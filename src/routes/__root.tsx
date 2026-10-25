@@ -1,6 +1,7 @@
 import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/router-devtools'
 import { Header } from '@/components/Header'
+import { Footer } from '@/components/Footer'
 import { DevTools } from '@/components/DevTools'
 import { Toaster, toast } from 'sonner'
 import { useEffect } from 'react'
@@ -53,6 +54,7 @@ function RootContent() {
       <main className="flex-1 w-full mx-auto">
         <Outlet />
       </main>
+      <Footer />
       <Toaster theme="dark" richColors position="bottom-center" />
       <DevTools />
       <TanStackRouterDevtools position="bottom-right" />
