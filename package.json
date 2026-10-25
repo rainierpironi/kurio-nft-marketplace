@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "test:e2e": "playwright test",
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "test:e2e": "playwright test",
+    "lighthouse": "npx @lhci/cli@0.14.x autorun --config=./lighthouserc.json"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",

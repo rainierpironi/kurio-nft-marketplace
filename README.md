@@ -18,141 +18,122 @@ Plataforma Web3 descentralizada para descoberta, negociação e coleção de art
 | **Recibo Imutável Pós-Confirmação** | A tela `/confirmacao/$id` só é acessível após sucesso do checkout, exibindo snapshot imutável com ID único de transação (`ORD-XXXXX`), hash na blockchain (`0x...`) e botão `Ver no Etherscan`. | ✅ 100% |
 | **Isolamento de Cache no Logout** | Execução atômica de `queryClient.clear()` no logout ou troca de usuário, impedindo vazamento de dados privados entre sessões. | ✅ 100% |
 | **Eventos de Rede WebSocket Reais** | O `@mswjs/socket.io-binding` trafega eventos `nft.updated` e `order.updated` diretamente pelo transporte de rede mockado, invalidando o cache reativo do TanStack Query e exigindo revalidação de cotação no checkout. | ✅ 100% |
-| **Cobertura de Testes E2E** | Suíte completa com **Playwright** cobrindo cenários de catálogo, filtros, deep links, carrinho, cupom, autenticação, checkout idempotente, carteiras e responsividade mobile (390px). | ✅ 100% |
-| **Deploy com Deep Linking** | Arquivos `vercel.json` e `public/_redirects` inclusos para roteamento SPA sem erro 404 em qualquer host (Vercel, Netlify, Cloudflare). | ✅ 100% |
+| **Cobertura de Testes E2E & Auditoria** | Suíte completa com **Playwright** (`e2e/`) e configuração de auditoria **Lighthouse CI** (`lighthouserc.json`). | ✅ 100% |
+| **Deploy com Deep Linking** | Arquivos `vercel.json`, `netlify.toml` e `public/_redirects` inclusos para roteamento SPA sem erro 404 em acesso direto ou refresh (`F5`). | ✅ 100% |
 
 ---
 
-## 🚀 Como Executar o Projeto
+## 🚀 Setup e Comandos de Execução
+
+A aplicação foi projetada para executar imediatamente a partir de um checkout limpo, sem depender de serviços privados ou backend externo.
 
 ### Pré-requisitos
-* Node.js 18+ (recomendado Node.js 20 ou 22)
-* npm 9+
+- **Node.js:** 18+ (recomendado Node.js 20 ou 22 LTS)
+- **npm:** 9+
 
-### 1. Instalação das Dependências
+### 1. Instalação Limpa
 ```bash
+git clone https://github.com/rainierpironi/kurio-nft-marketplace.git
+cd kurio-nft-marketplace
 npm install
 ```
 
-### 2. Execução em Ambiente de Desenvolvimento
-```bash
-npm run dev
-```
-Acesse a aplicação em `http://localhost:5173`. O Mock Service Worker (MSW) e os listeners de WebSocket serão inicializados automaticamente no navegador.
+### 2. Tabela de Comandos Disponíveis (`package.json`)
 
-### 3. Build e Validação de Tipagem
-```bash
-npm run build
-```
-
-### 4. Visualização do Build de Produção
-```bash
-npm run preview
-```
-
-### 5. Execução dos Testes Ponta a Ponta (Playwright)
-```bash
-# Executa todos os testes E2E (Desktop Chrome + Mobile 390px)
-npm run test:e2e
-```
+| Comando | Finalidade |
+| :--- | :--- |
+| `npm run dev` | Inicia o servidor de desenvolvimento Vite com MSW (HTTP + WebSocket) ativo em `http://localhost:5173`. |
+| `npm run build` | Executa a verificação estrita de tipos (`tsc -b`) e empacota a aplicação de produção em `dist/`. |
+| `npm run preview` | Serve o build de produção localmente (`vite preview`) com MSW e suporte a rotas SPA. |
+| `npm run typecheck` | Executa exclusivamente a verificação estática de tipos do TypeScript (`tsc -b`). |
+| `npm run lint` | Executa a análise estática de código e hooks React via `oxlint`. |
+| `npm run test:e2e` | Executa a suíte completa de 14 testes ponta a ponta do Playwright (`e2e/`). |
+| `npm run lighthouse` | Executa a auditoria automatizada de Performance, Acessibilidade, Boas Práticas e SEO com Lighthouse CI (`lighthouserc.json`). |
 
 ---
 
-## 🔑 Credenciais e Contas de Teste
+## ⚙️ Variáveis de Ambiente
 
-A aplicação possui dois usuários pré-configurados com dados mockados no MSW. Você pode alternar entre eles pelo botão **Entrar** (utilizando os atalhos rápidos de demonstração) ou digitando:
+A aplicação funciona **sem necessidade de criar arquivo `.env`** em checkout limpo, pois já possui valores padrão seguros embutidos para o Mock Service Worker. Caso deseje customizar o comportamento local, copie o arquivo `.env.example`:
 
-| Usuário | E-mail | Senha Padrão | Carteira Principal | Saldo Simulado |
-| :--- | :--- | :--- | :--- | :--- |
-| **Alex Nomad** | `alex@kurio.art` | `password123` | `0x71C...bFa3d` (Ethereum) | 4.85 ETH |
-| **Sara Nova** | `sara@kurio.art` | `password123` | `0x38B...910Ec` (Polygon) | 12.40 MATIC |
+```bash
+cp .env.example .env
+```
 
-### Cupons de Desconto Válidos
-* `KURIO10` — 10% de desconto no valor total dos colecionáveis
-* `GREENMINT20` — 20% de desconto em coleções selecionadas
+| Variável | Valor Padrão | Descrição |
+| :--- | :--- | :--- |
+| `VITE_API_BASE_URL` | `/api` | Prefixo base das rotas HTTP interceptadas pelo Axios / MSW. |
+| `VITE_ENABLE_MSW` | `true` | Mantém o Service Worker de mocks HTTP e WebSocket ativo em dev, preview e produção. |
 
 ---
 
-## 🛠️ Painel Interativo de Teste (MSW DevTools)
+## 🔑 Credenciais Fictícias e Cupons de Teste
 
-Um botão flutuante **⚡ MSW DevTools** está disponível no canto inferior esquerdo para testar cenários determinísticos de resiliência:
-1. **Sucesso Normal:** Operação fluida padrão de todas as rotas.
-2. **Falha de Pagamento (402):** Simula recusa da rede ou saldo insuficiente no checkout.
-3. **Timeout de Rede (5s):** Simula perda de conexão e valida a recuperação via **chave de idempotência** (`Idempotency-Key`).
-4. **Falha de Favorito (Rollback):** Retorna status 500 para comprovar a reversão imediata da mutação otimista na UI.
-5. **Simular WebSocket:** Emite evento ao vivo `nft.updated` com alteração de preço e estoque em tempo real.
-6. **Restaurar Fixtures:** Reseta todos os dados e carrinhos para o estado de fábrica.
+A aplicação conta com dois perfis de colecionadores pré-carregados nas fixtures do MSW. Você pode autenticar-se clicando em **Entrar** no topo da página (usando os botões de preenchimento rápido **Demo: Alex Nomad** / **Demo: Sara Nova** ou digitando manualmente):
+
+| Colecionador | E-mail | Senha | Carteira Principal | Carteira Secundária | Favoritos Iniciais |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Alex Nomad** | `alex@kurio.art` | `password123` | `0xA91F...E82C` (Ethereum) | `nova.kurio.eth` (Polygon) | `#1`, `#3` |
+| **Sara Nova** | `sara@kurio.art` | `password123` | `0x38B9...10EC` (Polygon) | `0x99C4...A1B2` (Solana) | `#2`, `#5` |
+
+### Cupons Promocionais Válidos (Carrinho e Pagamento)
+- `KURIO10` — Concede **10% de desconto** sobre o subtotal dos NFTs.
+- `GREENMINT20` — Concede **20% de desconto** sobre o subtotal dos NFTs.
+
+---
+
+## 🛠️ Seleção, Reset de Cenários e Reprodução dos Fluxos de Falha
+
+No canto inferior esquerdo de qualquer página está disponível o botão flutuante **⚡ MSW DevTools**. Ao clicar nele, você pode alternar em tempo real os cenários de resposta do servidor mockado (`localStorage['MSW_SCENARIO']`), disparar eventos WebSocket e resetar o banco de dados em memória.
+
+### Como Resetar Cenários e Fixtures
+1. Abra o painel **⚡ MSW DevTools** no canto inferior esquerdo.
+2. Clique em **↺ Restaurar Fixtures** (`POST /api/simulation/reset`).
+3. Todos os estoques dos 9 NFTs, carrinhos, pedidos, carteiras e o cenário ativo voltam imediatamente ao estado original de fábrica (`Sucesso Normal`), limpando também o cache do TanStack Query.
+
+### Passo a Passo para Reproduzir Cada Fluxo de Falha e Resiliência
+
+1. **Falha de Pagamento (HTTP 402 — Recusa da Carteira/Rede):**
+   - Adicione um NFT ao carrinho e acesse `/pagamento`.
+   - Abra o **⚡ MSW DevTools** e selecione **Falha Pagamento (402)**.
+   - Preencha os campos obrigatórios e clique em **Confirmar compra**.
+   - **Resultado esperado:** O servidor retorna status `402`, um toast de erro informa a recusa, os itens permanecem intactos no carrinho e o botão exibe **Tentar Novamente (Recuperar Pedido)**. Ao voltar o seletor para **Sucesso Normal** e clicar novamente, o pedido é concluído.
+
+2. **Timeout de Rede e Recuperação por Idempotência (`Idempotency-Key`):**
+   - Com itens no carrinho em `/pagamento`, selecione **Timeout de Rede** no **⚡ MSW DevTools**.
+   - Clique em **Confirmar compra**. O MSW processa a ordem internamente, mas simula queda da conexão após 4 segundos.
+   - Volte o seletor para **Sucesso Normal** e clique em **Tentar Novamente (Recuperar Pedido)**.
+   - **Resultado esperado:** O frontend reenvia a **mesma chave `x-idempotency-key`**; o MSW detecta a ordem já processada, evita cobrança/baixa de estoque duplicada, retorna `{ recovered: true }` e redireciona para o recibo imutável `/confirmacao/$id`.
+
+3. **Revalidação de Cotação em Tempo Real via WebSocket (`nft.updated`):**
+   - Adicione o item **Emerald Ape #042** ao carrinho e permaneça na tela `/pagamento`.
+   - Abra o **⚡ MSW DevTools** e clique no botão **📡 WebSocket Alteração**.
+   - **Resultado esperado:** O servidor emite o evento Socket.IO `nft.updated` alterando o preço e o estoque do item. Na tela `/pagamento`, surge imediatamente o banner de alerta **"Atualização de Preço ou Disponibilidade Detectada!"** bloqueando a finalização com a cotação antiga até que o usuário clique em **Confirmar Nova Cotação**.
+
+4. **Falha ao Favoritar com Rollback Otimista (HTTP 500):**
+   - Faça login (`alex@kurio.art`), abra o **⚡ MSW DevTools** e selecione **Falha Favorito (Rollback)**.
+   - Clique no ícone de coração (`♡`) em qualquer card de NFT.
+   - **Resultado esperado:** O coração muda de estado instantaneamente (atualização otimista no `onMutate`) e, após a resposta `500` do MSW, reverte automaticamente para o estado anterior (`onError`) exibindo a notificação de rollback.
+
+5. **Sessão Expirada (HTTP 401):**
+   - No **⚡ MSW DevTools**, selecione **Sessão Expirada (401)** e tente acessar `/perfil` ou salvar alterações cadastrais.
+   - **Resultado esperado:** O MSW responde `401 Unauthorized`, invalidando a operação protegida até que a sessão seja restabelecida.
 
 ---
 
 ## 🗺️ Mapa de Rotas e Fidelidade aos 15 Mockups do Figma
 
-| Rota | Mockups Correspondentes (Desktop & Mobile) | Deep Linking |
+| Rota | Mockups Correspondentes (Desktop & Mobile) | Deep Linking / Refresh (`F5`) |
 | :--- | :--- | :---: |
-| `/` | **`Início.png` & `MInício.png`:** Hero Banner (`SEJA DONO DO FUTURO DA ARTE DIGITAL`), sidebar com 9 `Coleções`, `Faixa de preço`, `Rede` e card `NFT EM DESTAQUE / OFERTA LIMITADA`, grelha de 9 NFTs Kurio Apes, 2 cards promocionais e blog `Diário da Cunhagem` (4 colunas). | ✅ Sim |
-| `/nft/$id` | **`Detalhes do NFT.png` & `MDetalhes do NFT.png`:** Galeria com 4 miniaturas verticais + zoom, seletor de edição (`1/1`, `1/10`, `1/50`, `ABERTA`), controle de quantidade âmbar, abas `Detalhes do NFT` / `Avaliações de colecionadores (19)` e seção `Mais desta coleção`. | ✅ Sim |
-| `/carrinho` | **`Carrinho de NFTs.png` & `MCarrinho de NFTs.png`:** Tabela completa (`NFTs`, `Preço`, `Edições`, `Total`), painel `Resumo da carteira` com código promocional e seção `Colecionadores também viram`, além do Drawer acessível em qualquer página. | ✅ Sim |
-| `/pagamento` | **`Pagamento.png` & `MPagamento.png`:** Formulário `Perfil do colecionador` em 2 colunas, resumo `Seus NFTs`, seleção de `Carteira e rede` (`METAMASK • WALLETCONNECT • COINBASE`), proteção contra mudança de cotação em tempo real e chave de idempotência. | ✅ Sim |
-| `/confirmacao/$id` | **`Confirmação de Pedido.png`:** Modal de confirmação pós-compra com selo `THANK YOU`, `Seus NFTs agora estão na sua carteira`, faixa de 4 colunas (`ID da transação`, `Data`, `Total`, `Carteira`), `Detalhes da transação` e botão `Ver no Etherscan`. | ✅ Sim |
+| `/` | **`Início.png` & `MInício.png`:** Hero Banner, sidebar com 9 `Coleções`, `Faixa de preço`, `Rede` e card `NFT EM DESTAQUE / OFERTA LIMITADA`, grelha de 9 NFTs Kurio Apes, 2 cards promocionais e blog `Diário da Cunhagem` (4 colunas). | ✅ Sim |
+| `/nft/$id` | **`Detalhes do NFT.png` & `MDetalhes do NFT.png`:** Galeria com 4 miniaturas verticais + zoom, seletor de edição (`1/1`, `1/10`, `1/50`, `ABERTA`), controle de quantidade, abas `Detalhes do NFT` / `Avaliações de colecionadores (19)`, seção `Mais desta coleção` e tratamento 404 para IDs inexistentes. | ✅ Sim |
+| `/carrinho` | **`Carrinho de NFTs.png` & `MCarrinho de NFTs.png`:** Tabela `Resumo dos NFTs` (`NFTs`, `Preço`, `Edições`, `Total`), painel `Resumo da compra` com cupom, taxa de rede `0.016 ETH` e carrossel `Você também pode gostar`, além do Drawer lateral. | ✅ Sim |
+| `/pagamento` | **`Pagamento.png` & `MPagamento.png`:** Formulário `Perfil do colecionador` em 2 colunas (Desktop) e seletor `Carteira conectada` (`Reserva` / `Principal`) no Mobile, resumo `Seus NFTs`, seleção de `Carteira e rede`, revalidação WebSocket e idempotência. | ✅ Sim |
+| `/confirmacao/$id` | **`Confirmação de Pedido.png`:** Card pós-compra com selo `THANK YOU`, `Seus NFTs agora estão na sua carteira`, faixa de 4 colunas (`ID da transação`, `Data`, `Total`, `Carteira`), `Detalhes da transação` e botão `Ver no Etherscan`. | ✅ Sim |
 | `/perfil` | **`Perfil do Colecionador.png`:** Sidebar `Meu perfil` (`Dados do perfil`, `Carteiras`, `Atividade`, `Lista de interesse`, `Ofertas`, `Arquivos baixados`, `Suporte`, `Sair`), formulário em 2 colunas com Avatar e seção `Alterar senha`. | ✅ Sim |
 | `/carteiras` | **`Carteiras.png`:** Sidebar `Meu perfil` com `Carteiras` ativo, formulário `Carteira principal`, botão `Salvar carteira`, listagem de carteiras vinculadas e seção `Carteira secundária`. | ✅ Sim |
-| `/login` | **`Login.png` & `MLogin.png`:** Abas `Entrar \| Criar conta`, campos com alternância de visibilidade de senha, `Ou continue com` (`Google` / `Facebook`) e contas rápidas de demonstração. | ✅ Sim |
-| `/cadastro` | **`Cadastro.png` & `MCadastro.png`:** Registro completo de colecionador com mesclagem imediata do carrinho de visitante. | ✅ Sim |
-
----
-
-## 📦 Estrutura do Código-Fonte
-
-```
-nft-marketplace/
-├── e2e/                             # Testes de ponta a ponta Playwright
-│   ├── auth-and-cart.spec.ts        # Fluxo de login, mesclagem, cupom e /carrinho
-│   ├── catalog.spec.ts              # Catálogo, busca, filtros e sincronização na URL
-│   ├── checkout-and-receipt.spec.ts # Compra, idempotência e recibo imutável
-│   ├── favorites-and-profile.spec.ts# Perfil, sidebar Meu perfil e atualização cadastral
-│   ├── nft-details.spec.ts          # Detalhes do item e tela 404
-│   └── wallets-and-footer.spec.ts   # Carteiras Web3, Cadastro e Footer
-├── public/
-│   ├── nfts/                        # Ilustrações oficiais Kurio Apes extraídas do Figma
-│   │   ├── ape-emerald.png          # Emerald Ape #042
-│   │   ├── ape-sage.png             # Sage Nomad #009 / Cosmic Bloom #118 / Violet Nomad #314
-│   │   ├── ape-baron.png            # Neon Vessel #552 / Ivory Baron #088
-│   │   └── ape-golden.png           # Golden Beat #207 / Golden Frequency #071 / Golden Signal #160
-│   ├── _redirects                   # Redirecionamento SPA para Netlify
-│   └── mockServiceWorker.js         # Service Worker do MSW v2
-├── src/
-│   ├── components/                  # Componentes compartilhados fiéis ao Figma
-│   │   ├── AuthModal.tsx            # Modal Entrar | Criar conta
-│   │   ├── Cart.tsx                 # Gaveta lateral Carrinho de NFTs
-│   │   ├── DevTools.tsx             # Painel flutuante de cenários MSW
-│   │   ├── Footer.tsx               # Rodapé com medalhões W, C, D + Newsletter + 4 colunas
-│   │   ├── Header.tsx               # Header Desktop + Bottom Navigation Bar Mobile
-│   │   └── NFTCard.tsx              # Card Kurio Ape com selo RARO e ações rápidas
-│   ├── context/
-│   │   └── AuthContext.tsx          # Autenticação, tokens e isolamento de cache
-│   ├── lib/
-│   │   └── api.ts                   # Cliente Axios tipado e contratos da API
-│   ├── mocks/
-│   │   ├── browser.ts               # Setup do worker MSW no navegador
-│   │   └── handlers.ts              # Handlers REST e WebSockets (@mswjs/socket.io-binding)
-│   ├── routes/                      # Rotas tipadas TanStack Router
-│   │   ├── __root.tsx               # Layout raiz com Header, Footer e Socket.IO
-│   │   ├── index.tsx                # Início (Catálogo, Hero, Promos e Diário da Cunhagem)
-│   │   ├── nft.$id.tsx              # Detalhes do NFT e 404
-│   │   ├── carrinho.tsx             # Página dedicada do Carrinho de NFTs
-│   │   ├── pagamento.tsx            # Checkout e idempotência
-│   │   ├── confirmacao.$id.tsx      # Confirmação de Pedido imutável
-│   │   ├── perfil.tsx               # Perfil do colecionador
-│   │   ├── carteiras.tsx            # Carteira principal e secundária
-│   │   ├── login.tsx                # Tela dedicada de login
-│   │   └── cadastro.tsx             # Tela dedicada de cadastro
-│   ├── main.tsx                     # Ponto de entrada com ativação do MSW
-│   └── routeTree.gen.ts             # Árvore gerada de rotas tipadas
-├── ARCHITECTURE.md                  # Decisões de arquitetura e padrões técnicos
-├── playwright.config.ts             # Configuração do Playwright
-├── vercel.json                      # Roteamento SPA para Vercel
-└── vite.config.ts                   # Configuração do Vite com TanStack Router plugin
-```
+| `/login` | **`Login.png` & `MLogin.png`:** Abas `Entrar \| Criar conta`, campos com alternância de visibilidade de senha, `Ou continue com` (`Google` / `Facebook`) e atalhos de demonstração. | ✅ Sim |
+| `/cadastro` | **`Cadastro.png` & `MCadastro.png`:** Registro completo de colecionador com mesclagem automática do carrinho de visitante. | ✅ Sim |
 
 ---
 

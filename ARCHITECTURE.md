@@ -1,65 +1,111 @@
 # Arquitetura do Marketplace de NFTs — KURIO (Jungle Gaming Challenge)
 
-Este documento descreve detalhadamente as decisões de engenharia, arquitetura de software, padrões de estado, resiliência de rede e fidelidade visual implementados na SPA do marketplace de NFTs **KURIO**.
+Este documento detalha os contratos REST e eventos em tempo real, a política de sessão, o gerenciamento de estado do carrinho, a estratégia de cache e reconciliação entre REST e Socket.IO, bem como as decisões de UX, limitações e alinhamento com o Figma implementados na plataforma **KURIO**.
 
 ---
 
 ## 1. Visão Geral e Stack Tecnológica
 
-A aplicação foi desenvolvida em conformidade estrita com todos os requisitos eliminatórios e recomendações do desafio:
-
 | Camada | Tecnologia Adotada | Justificativa Técnica |
 | :--- | :--- | :--- |
-| **Interface** | React 19 + TypeScript (Strict) | Componentização declarativa, tipagem estática rigorosa e compatibilidade com React 19. |
-| **Roteamento & Deep Linking** | TanStack Router | Roteamento com tipagem estrita de rotas (`routeTree.gen.ts`) e sincronização bidirecional de parâmetros na URL (`q`, `category`, `network`, `sort`, `page`, `minPrice`, `maxPrice`). |
-| **Estado Remoto & Cache** | TanStack Query v5 | Cache determinístico, mutações otimistas com rollback garantido, invalidação reativa e limpeza total (`queryClient.clear()`) no logout. |
-| **Camada HTTP** | Axios | Instância centralizada com interceptor para injeção automática de token Bearer extraído do `localStorage`. |
-| **Tempo Real (WebSockets)** | Socket.IO Client + `@mswjs/socket.io-binding` | Eventos de WebSocket (`nft.updated` e `order.updated`) trafegando na camada de rede (MSW) para atualização reativa de preços e estoques sem acoplamento direto com a UI. |
-| **Estilização & Design System** | Tailwind CSS + shadcn/ui | Design System fiel aos mockups Figma da KURIO: fundo Dark Espresso (`#14100D`), superfícies (`#1E1712`), acento Warm Amber (`#C88246`) e tipografia `Space Mono`. |
-| **Mocking de Rede** | Mock Service Worker (MSW) v2 | Intercepção estrita no nível de transporte HTTP e WebSocket via Service Worker no navegador. Ativo tanto em ambiente de desenvolvimento como em deploy público. |
-| **Testes Ponta a Ponta** | Playwright | Suíte de testes automatizados cobrindo fluxos críticos de ponta a ponta em Desktop (Chrome) e Mobile (390px). |
+| **Interface & Tipagem** | React 19 + TypeScript (Strict) | Componentização declarativa, tipagem estática rigorosa de ponta a ponta e zero erros de compilação (`tsc -b`). |
+| **Roteamento & URL State** | TanStack Router | Roteamento file-based com geração automática de árvore tipada (`routeTree.gen.ts`) e validação de search params via `validateSearch`. |
+| **Estado Servidor & Cache** | TanStack Query v5 | Gerenciamento declarativo de cache, invalidação seletiva por chaves, mutações otimistas com rollback e limpeza atômica no logout. |
+| **Cliente HTTP** | Axios | Instância única (`src/lib/api.ts`) com interceptor de requisição para injeção automática do cabeçalho `Authorization: Bearer`. |
+| **Tempo Real** | Socket.IO Client + `@mswjs/socket.io-binding` | Interceptação real de pacotes WebSocket no navegador pelo Service Worker, permitindo eventos push (`nft.updated`, `order.updated`) desacoplados da UI. |
+| **Mocking & Persistência** | Mock Service Worker (MSW) | Simulação realista de latência, erros HTTP (`400`, `401`, `402`, `404`, `409`, `500`), timeout de rede e persistência de estado em `localStorage` (`KURIO_MOCK_STATE_V2`) para suportar refresh (`F5`). |
+| **Qualidade & Auditoria** | Playwright + Oxlint + Lighthouse CI | 14 testes E2E cobrindo fluxos críticos em Desktop e Mobile, linter estático rápido e configuração de auditoria em `lighthouserc.json`. |
 
 ---
 
-## 2. Decisões Arquiteturais e Padrões de Projeto
+## 2. Contratos REST e Eventos WebSocket (Socket.IO)
 
-### 2.1. Sincronização de Estado na URL (URL as Source of Truth)
-O catálogo de NFTs utiliza a URL para persistir o estado de busca e navegação através do `validateSearch` do TanStack Router:
-* **Parâmetros sincronizados:** `q` (busca textual), `category` (coleções), `network` (blockchain), `sort` (ordenação), `minPrice`/`maxPrice` (faixa de preço) e `page` (paginação).
-* **Reset de Página Atômico:** A alteração de qualquer critério de busca ou filtragem redefine atomicamente `page: 1` para garantir que o usuário não permaneça em páginas inexistentes.
-* **Histórico Nativo do Navegador:** O suporte a *Back* e *Forward* do navegador restaura o estado exato dos filtros sem provocar flashes ou re-renderizações desnecessárias.
+Todos os contratos abaixo são implementados em `src/mocks/handlers.ts` e consumidos exclusivamente via `src/lib/api.ts`.
 
-### 2.2. Autenticação, Isolamento de Dados e Mesclagem de Carrinho
-* **Sessão:** Tokens simulados (`mock-token-{userId}`) persistem a autenticação no `localStorage`.
-* **Isolamento Estrito de Cache:** No evento de logout ou troca de usuário, o método `queryClient.clear()` é executado imediatamente para evitar que dados privados (carteiras vinculadas, favoritos ou recibos) vazem entre usuários distintos (critério eliminatório).
-* **Mesclagem de Visitante (Guest to User Merge):** Itens adicionados ao carrinho antes do login são persistidos em um carrinho de visitante e mesclados no backend mockado (`POST /api/cart/merge`) assim que o colecionador efetua login ou registro.
+### 2.1. Endpoints REST (`/api/*`)
 
-### 2.3. Mutações Otimistas com Rollback Garantido
-Para a ação de favoritar colecionáveis no card de NFT e na página de detalhes:
-1. `onMutate`: O cancelamento de queries pendentes e a atualização imediata da UI garantem latência percebida zero para o usuário.
-2. `onError`: Caso a simulação falhe (como no cenário `favorites_fail` do MSW DevTools), o snapshot anterior é restaurado no cache (`setQueryData`) e uma notificação de erro é disparada pelo Sonner.
-3. `onSettled`: Invalidação e sincronização final com o servidor mockado.
+| Método | Rota | Parâmetros / Payload | Resposta de Sucesso | Códigos de Erro Simulados |
+| :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/api/nfts` | Query: `q`, `category`, `network`, `sort`, `minPrice`, `maxPrice`, `page`, `limit` | `200 OK` `{ items: NFT[], total, page, limit, totalPages }` | `500` (quando cenário de erro ativo) |
+| `GET` | `/api/nfts/:id` | Param: `id` (aceita `id` ou `tokenId`) | `200 OK` `NFT` | `404 Not Found` (item inexistente) |
+| `POST` | `/api/auth/login` | Body: `{ email, password }` | `200 OK` `{ token, user }` | `401 Unauthorized` (credenciais inválidas) |
+| `POST` | `/api/auth/register` | Body: `{ name, username, email, password }` | `201 Created` `{ token, user }` | `400 Bad Request` (e-mail já cadastrado) |
+| `GET` | `/api/auth/me` | Header: `Authorization: Bearer <token>` | `200 OK` `{ user }` | `401 Unauthorized` |
+| `GET` | `/api/cart` | Header opcional `Authorization` | `200 OK` `{ items: Array<{ nftId, quantity, nft }> }` | — |
+| `POST` | `/api/cart` | Body: `{ nftId, quantity }` | `200 OK` `{ items }` | `400` (estoque insuficiente), `404` |
+| `PATCH` | `/api/cart/:nftId` | Body: `{ quantity }` | `200 OK` `{ items }` | `400` (excede disponibilidade) |
+| `DELETE` | `/api/cart/:nftId` | Param: `nftId` (`all` limpa o carrinho) | `200 OK` `{ items }` | — |
+| `POST` | `/api/cart/merge` | Header: `Authorization: Bearer <token>` | `200 OK` `{ items, merged: true }` | `401 Unauthorized` |
+| `GET` | `/api/checkout/quote` | Query opcional: `coupon` (`KURIO10`, `GREENMINT20`) | `200 OK` `{ subtotal, discount, gasFee: "0.016", total, validCoupon }` | — |
+| `POST` | `/api/orders` | Header: `x-idempotency-key` + Body do checkout | `201 Created` `{ success: true, order }` ou `200 OK` `{ recovered: true, order }` | `400` (carrinho vazio), `402` (`payment_failed`), `409` (payload divergente para mesma chave), Network Error (`timeout`) |
+| `GET` | `/api/orders/:id` | Param: `id` (`ORD-XXXXX`) | `200 OK` `{ order: ProcessedOrder }` | `404 Not Found` |
+| `GET` | `/api/favorites` | Header: `Authorization` | `200 OK` `{ favorites: string[] }` | `401 Unauthorized` |
+| `POST` | `/api/favorites` | Body: `{ nftId }` | `200 OK` `{ favorites: string[] }` | `401`, `500` (`favorites_fail` para testar rollback) |
+| `DELETE` | `/api/favorites/:nftId` | Param: `nftId` | `200 OK` `{ favorites: string[] }` | `401`, `500` (`favorites_fail` para testar rollback) |
+| `GET` | `/api/profile` | Header: `Authorization` | `200 OK` `{ user }` | `401 Unauthorized` |
+| `PUT` | `/api/profile` | Body: `{ name, lastName, username, email, bio }` | `200 OK` `{ user }` | `401 Unauthorized` |
+| `POST` | `/api/profile/password` | Body: `{ currentPassword, newPassword }` | `200 OK` `{ success: true, message }` | `400` (senha atual incorreta), `401` |
+| `POST` | `/api/wallets` | Body: `{ address, network, label, walletType, isPrimary }` | `201 Created` `{ wallets: Wallet[] }` | `400` (endereço duplicado), `401` |
+| `PATCH` | `/api/wallets/:id/primary` | Param: `id` | `200 OK` `{ wallets: Wallet[] }` | `401`, `404` |
+| `DELETE` | `/api/wallets/:id` | Param: `id` | `200 OK` `{ wallets: Wallet[] }` | `400` (proibido remover única carteira principal), `401` |
+| `POST` | `/api/simulation/reset` | Sem body | `200 OK` `{ success: true }` (restaura estado inicial de fábrica) | — |
 
-### 2.4. Resiliência de Checkout: Idempotência, Revalidação de Cotação e Recibo Imutável
-* **Chave de Idempotência:** Cada tentativa de checkout gera uma chave única (`Idempotency-Key` / `x-idempotency-key`) preservada durante a sessão da página de pagamento.
-* **Proteção contra Mudança de Cotação em Tempo Real:** Caso um evento WebSocket (`nft.updated`) altere o preço de um item presente no carrinho enquanto o usuário está em `/pagamento`, o checkout bloqueia o envio automático e exibe um alerta exigindo a confirmação explícita da nova cotação antes de prosseguir.
-* **Prevenção de Pedidos Duplicados:** Se ocorrer duplo clique ou re-tentativa após timeout de rede, o MSW detecta a chave no cache de pedidos processados e devolve o snapshot existente com status HTTP 200 (`recovered: true`).
-* **Recibo Imutável (`/confirmacao/$id`):** O pedido confirmado gera um snapshot imutável com ID único (`ORD-XXXXX`), data, hash simulado de transação (`0x...`) e link para explorador de blocos (`Ver no Etherscan`).
+### 2.2. Eventos WebSocket (`Socket.IO`)
+
+A conexão é estabelecida em `src/routes/__root.tsx` forçando `transports: ['websocket']` para garantir a interceptação pelo `@mswjs/socket.io-binding`:
+
+| Evento | Direção | Payload | Efeito na Aplicação |
+| :--- | :--- | :--- | :--- |
+| `admin.simulate_update` | Cliente → Servidor | *(vazio)* | Solicita ao MSW a mutação em tempo real de preço e disponibilidade de um NFT do catálogo. |
+| `nft.updated` | Servidor → Cliente | `NFT` atualizado (`id`, `title`, `price`, `available`, ...) | Dispara toast informativo, invalida as queries `['nfts']`, `['cart']`, `['checkout-quote']`, `['nft', id]` e emite o evento de domínio `KURIO_NFT_UPDATED` para bloquear cotações defasadas em `/pagamento`. |
+| `order.updated` | Servidor → Cliente | `{ orderId: string, status: 'confirmed' \| 'pending' \| 'rejected' }` | Notifica mudança de status da transação na blockchain e invalida `['orders']`. |
 
 ---
 
-## 3. Conformidade com os 15 Mockups do Figma
+## 3. Política de Sessão e Isolamento de Dados
 
-O projeto implementa com precisão visual todos os 9 frames Desktop e 6 frames Mobile:
-1. **`Início.png` & `MInício.png` (`/`):**
-   * **Header & Mobile Bottom Bar:** Logotipo `KURIO`, links `Início | Mercado | Criadores | Aprenda`, busca, carrinho com badge âmbar, botão sólido `↪ Entrar` e barra inferior fixa no mobile com botão central elevado âmbar.
-   * **Hero Banner:** `Bem-vindo à Kurio`, `SEJA DONO DO FUTURO DA ARTE DIGITAL`, botão `EXPLORAR` e ilustração `Emerald Ape #042`.
-   * **Catálogo:** Sidebar com 9 `Coleções` e contadores, slider `Faixa de preço`, `Rede` (`Ethereum`, `Polygon`, `Solana`), card `NFT EM DESTAQUE / OFERTA LIMITADA`, grelha de 3 colunas com os 9 NFTs Kurio Apes e paginação `[1] [2] [3] [4] [>]`.
-   * **Promos & Blog:** 2 cards horizontais (`Lançamentos gênesis de edição limitada` e `Arte digital selecionada e muito mais`) e seção `Diário da Cunhagem` com 4 artigos.
-   * **Footer:** 3 medalhões circulares âmbar (`W`, `C`, `D`), newsletter `Antecipe-se ao próximo lançamento`, faixa institucional `KURIO`, 4 colunas de links, ícones sociais e selo `METAMASK • WALLETCONNECT • COINBASE`.
-2. **`Detalhes do NFT.png` & `MDetalhes do NFT.png` (`/nft/$id`):** 4 miniaturas verticais + imagem principal com zoom, seletor de edição, botões ovais `-`/`+`, `COMPRAR`, `Favoritar`, abas `Detalhes do NFT | Avaliações de colecionadores (19)` e grelha `Mais desta coleção`.
-3. **`Carrinho de NFTs.png` & `MCarrinho de NFTs.png` (`/carrinho` e Drawer):** Tabela de itens com controle de edições, `Resumo da carteira` com cupom e seção `Colecionadores também viram`.
-4. **`Pagamento.png` & `MPagamento.png` (`/pagamento`):** Formulário `Perfil do colecionador`, resumo `Seus NFTs`, opções de `Carteira e rede` e botão `Confirmar compra`.
-5. **`Confirmação de Pedido.png` (`/confirmacao/$id`):** Card centralizado com selo `THANK YOU`, `Seus NFTs agora estão na sua carteira`, faixa de 4 colunas, `Detalhes da transação` e `Ver no Etherscan`.
-6. **`Perfil do Colecionador.png` (`/perfil`) & `Carteiras.png` (`/carteiras`):** Sidebar compartilhada `Meu perfil` com 8 itens e formulários dedicados.
-7. **`Login.png`, `Cadastro.png`, `MLogin.png`, `MCadastro.png` (`/login`, `/cadastro` e `AuthModal`):** Abas `Entrar | Criar conta`, login social e contas rápidas de demonstração.
+1. **Armazenamento de Token:** O token de sessão (`mock-token-usr-1`, `mock-token-usr-2`, etc.) é mantido em `localStorage['auth_token']` e injetado pelo interceptor do Axios em cada requisição.
+2. **Hidratação Inicial:** Na montagem do `AuthProvider` (`src/context/AuthContext.tsx`), a aplicação valida o token via `GET /api/auth/me`.
+3. **Isolamento Atômico no Logout e Troca de Conta:**
+   - Ao executar `logout()` (pelo Header ou pela opção `Sair` na sidebar de `/perfil` e `/carteiras`), o token é removido do `localStorage`, o estado `user` é definido como `null` e **`queryClient.clear()` é invocado sincronamente**.
+   - Isso garante que dados sensíveis da sessão anterior (favoritos, carteiras, perfil e carrinho autenticado) sejam imediatamente purgados da memória antes de qualquer nova renderização.
+
+---
+
+## 4. Estado do Carrinho (Visitante, Autenticado e Mesclagem)
+
+1. **Separação no Backend Mockado:** O MSW mantém uma estrutura `visitorCart` (para usuários anônimos) e um dicionário `userCarts[userId]` (para colecionadores autenticados), ambos sincronizados em `localStorage['KURIO_MOCK_STATE_V2']` para resistir a recarregamentos de página (`F5`).
+2. **Mesclagem Automática no Login/Cadastro (`POST /api/cart/merge`):**
+   - Quando um visitante adiciona NFTs ao carrinho e em seguida faz login ou cria uma conta (via `AuthModal`, `/login` ou `/cadastro`), o `AuthContext` chama `await mergeCart()` antes de invalidar a query `['cart']`.
+   - O MSW soma as quantidades dos itens do `visitorCart` ao `userCarts[user.id]`, respeitando o limite máximo de estoque disponível (`nft.available`), e limpa o `visitorCart`.
+3. **Validação de Estoque e Conflitos:** Tanto no Drawer (`Cart.tsx`), quanto na página `/carrinho` e no checkout `/pagamento`, a quantidade solicitada é confrontada com `item.nft.available`. Caso uma atualização em tempo real reduza o estoque abaixo da quantidade no carrinho, um alerta destaca o item conflitante e oferece um botão de ajuste rápido de 1 clique.
+
+---
+
+## 5. Estratégia de Cache e Reconciliação entre REST e Socket.IO
+
+- **Configuração do `QueryClient` (`src/main.tsx`):** `staleTime` de 5 minutos para leituras de catálogo, evitando refetches redundantes durante a navegação rápida entre páginas, combinado com invalidação cirúrgica após mutações e eventos WebSocket.
+- **Chaves de Cache Padronizadas:**
+  - `['nfts', { q, category, network, sort, page, minPrice, maxPrice }]`: listagem paginada e filtrada do catálogo.
+  - `['nft', id]`: detalhes individuais do token.
+  - `['cart']`: estado atual do carrinho (visitante ou autenticado).
+  - `['checkout-quote', appliedCoupon, cartItems]`: cotação financeira (`subtotal`, `discount`, `gasFee`, `total`).
+  - `['favorites']`: lista de IDs favoritados pelo usuário autenticado (com **mutação otimista** em `onMutate` e **rollback automático** em `onError`).
+  - `['order', id]`: snapshot imutável do recibo de confirmação.
+- **Reconciliação REST + Socket.IO:**
+  - Quando o Socket.IO recebe `nft.updated`, o listener raiz em `src/routes/__root.tsx` invalida simultaneamente `['nfts']`, `['cart']`, `['checkout-quote']` e `['nft', updatedNft.id]`.
+  - Se o usuário estiver na rota `/pagamento` e o NFT atualizado fizer parte do seu carrinho, o estado `quoteStale` é ativado imediatamente. O botão de pagamento é substituído por **Confirmar Nova Cotação**, regenerando uma nova `Idempotency-Key` somente após o aceite explícito do novo valor pelo comprador.
+
+---
+
+## 6. Limitações, Decisões de UX e Desvios Intencionais do Figma
+
+1. **Persistência Local de Simulação (`KURIO_MOCK_STATE_V2`):**
+   - *Limitação:* Por operar 100% no navegador via Service Worker sem banco de dados remoto, o estado persiste por navegador/dispositivo (`localStorage`).
+   - *Decisão:* Adicionamos sincronização automática em `localStorage` dentro do `handlers.ts` para garantir que qualquer recarregamento (`F5`) ou acesso direto via URL preserve os pedidos criados, os itens no carrinho e as carteiras salvas.
+2. **Painel Flutuante `⚡ MSW DevTools`:**
+   - *Desvio Intencional do Figma:* Os 15 mockups do Figma não preveem uma interface de injeção de falhas de rede. Para atender ao requisito de avaliação de cenários de erro (`402`, `500`, `401`, `Timeout`) e disparo manual de eventos WebSocket sem exigir que o avaliador edite código ou execute comandos no console, incluímos uma pílula discreta (`⚡ MSW DevTools`) no canto inferior esquerdo.
+3. **Banners de Conflito de Cotação e Estoque em `/pagamento`:**
+   - *Decisão de UX:* Os mockups estáticos de `Pagamento.png` e `MPagamento.png` retratam apenas o caminho feliz. Quando um evento em tempo real altera o preço ou reduz a disponibilidade de um item no carrinho, um banner contextual âmbar/vermelho é exibido no topo do checkout para guiar o usuário na confirmação da nova cotação ou no ajuste de quantidade.
+4. **Acessibilidade e Navegação Híbrida (Modal + Rotas Dedicadas):**
+   - *Decisão de UX:* No Figma, o Carrinho e o Login/Cadastro aparecem tanto como sobreposições (Drawer/Modal sobre a Home) quanto como telas dedicadas no Mobile. Implementamos **ambos os formatos** (o Drawer `Cart.tsx` e o `AuthModal.tsx` para acesso rápido no Header, além das rotas completas `/carrinho`, `/login` e `/cadastro` para *deep linking*).
